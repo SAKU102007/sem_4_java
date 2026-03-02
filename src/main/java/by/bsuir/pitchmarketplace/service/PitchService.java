@@ -138,15 +138,13 @@ public class PitchService {
         if (request.getPriceTo() != null && pitch.getPricePerHour().compareTo(request.getPriceTo()) > 0) {
             return false;
         }
-        if (request.getDistrict() != null && !request.getDistrict().isBlank()
-                && !pitch.getDistrict().equalsIgnoreCase(request.getDistrict().trim())) {
-            return false;
-        }
-        if (request.getMetro() != null && !request.getMetro().isBlank()
-                && !pitch.getMetro().equalsIgnoreCase(request.getMetro().trim())) {
-            return false;
-        }
-        return true;
+        boolean matchesDistrict = request.getDistrict() == null
+                || request.getDistrict().isBlank()
+                || pitch.getDistrict().equalsIgnoreCase(request.getDistrict().trim());
+        boolean matchesMetro = request.getMetro() == null
+                || request.getMetro().isBlank()
+                || pitch.getMetro().equalsIgnoreCase(request.getMetro().trim());
+        return matchesDistrict && matchesMetro;
     }
 
     private boolean matchesSkillFilter(Pitch pitch, Integer skillMin, Integer skillMax) {
