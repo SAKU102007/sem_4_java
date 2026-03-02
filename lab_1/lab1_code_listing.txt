@@ -1,0 +1,1735 @@
+ЛИСТИНГ КОДА ПРОЕКТА
+
+Файл PitchMarketplaceApplication.java
+
+package by.bsuir.pitchmarketplace;
+
+import java.util.TimeZone;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class PitchMarketplaceApplication {
+
+    public static void main(String[] args) {
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/Minsk"));
+        SpringApplication.run(PitchMarketplaceApplication.class, args);
+    }
+}
+
+
+Файл PitchController.java
+
+package by.bsuir.pitchmarketplace.controller;
+
+import by.bsuir.pitchmarketplace.dto.PitchDetailsResponse;
+import by.bsuir.pitchmarketplace.dto.PitchSearchRequest;
+import by.bsuir.pitchmarketplace.dto.PitchSearchResponse;
+import by.bsuir.pitchmarketplace.domain.enums.PitchType;
+import by.bsuir.pitchmarketplace.service.PitchService;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/pitches")
+public class PitchController {
+
+    private final PitchService pitchService;
+
+    public PitchController(PitchService pitchService) {
+        this.pitchService = pitchService;
+    }
+
+    @GetMapping("/search")
+    public List<PitchSearchResponse> search(
+            @RequestParam(required = false) PitchType pitchType,
+            @RequestParam(required = false) BigDecimal priceFrom,
+            @RequestParam(required = false) BigDecimal priceTo,
+            @RequestParam(required = false) Integer durationMinutes,
+            @RequestParam(required = false) Integer skillMin,
+            @RequestParam(required = false) Integer skillMax,
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) String metro,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double radiusKm,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desiredStartAt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desiredEndAt,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false, defaultValue = "false") Boolean needInventory,
+            @RequestParam(required = false, defaultValue = "0") Integer ballQty,
+            @RequestParam(required = false, defaultValue = "0") Integer bibsQty,
+            @RequestHeader(name = "X-User-Id", required = false) Long requesterUserId
+    ) {
+        PitchSearchRequest request = new PitchSearchRequest();
+        request.setPitchType(pitchType);
+        request.setPriceFrom(priceFrom);
+        request.setPriceTo(priceTo);
+        request.setDurationMinutes(durationMinutes);
+        request.setSkillMin(skillMin);
+        request.setSkillMax(skillMax);
+        request.setDistrict(district);
+        request.setMetro(metro);
+        request.setLat(lat);
+        request.setLng(lng);
+        request.setRadiusKm(radiusKm);
+        request.setDesiredStartAt(desiredStartAt);
+        request.setDesiredEndAt(desiredEndAt);
+        request.setSort(sort);
+        request.setNeedInventory(needInventory);
+        request.setBallQty(ballQty);
+        request.setBibsQty(bibsQty);
+        return pitchService.search(request, requesterUserId);
+    }
+
+    @GetMapping("/{id}")
+    public PitchDetailsResponse getById(@PathVariable Long id) {
+        return pitchService.getById(id);
+    }
+}
+
+
+Файл Booking.java
+
+package by.bsuir.pitchmarketplace.domain.entity;
+
+import by.bsuir.pitchmarketplace.domain.enums.BookingStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "bookings")
+public class Booking {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pitch_id", nullable = false)
+    private Pitch pitch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_id", nullable = false)
+    private User player;
+
+    @Column(nullable = false)
+    private LocalDateTime startAt;
+
+    @Column(nullable = false)
+    private LocalDateTime endAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BookingStatus status;
+
+    private LocalDateTime lockExpiresAt;
+
+    @Column(nullable = false)
+    private Boolean recurring;
+
+    private String recurrenceGroupId;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Pitch getPitch() {
+        return pitch;
+    }
+
+    public void setPitch(Pitch pitch) {
+        this.pitch = pitch;
+    }
+
+    public User getPlayer() {
+        return player;
+    }
+
+    public void setPlayer(User player) {
+        this.player = player;
+    }
+
+    public LocalDateTime getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(LocalDateTime startAt) {
+        this.startAt = startAt;
+    }
+
+    public LocalDateTime getEndAt() {
+        return endAt;
+    }
+
+    public void setEndAt(LocalDateTime endAt) {
+        this.endAt = endAt;
+    }
+
+    public BookingStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(BookingStatus status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getLockExpiresAt() {
+        return lockExpiresAt;
+    }
+
+    public void setLockExpiresAt(LocalDateTime lockExpiresAt) {
+        this.lockExpiresAt = lockExpiresAt;
+    }
+
+    public Boolean getRecurring() {
+        return recurring;
+    }
+
+    public void setRecurring(Boolean recurring) {
+        this.recurring = recurring;
+    }
+
+    public String getRecurrenceGroupId() {
+        return recurrenceGroupId;
+    }
+
+    public void setRecurrenceGroupId(String recurrenceGroupId) {
+        this.recurrenceGroupId = recurrenceGroupId;
+    }
+}
+
+
+Файл EquipmentOffer.java
+
+package by.bsuir.pitchmarketplace.domain.entity;
+
+import by.bsuir.pitchmarketplace.domain.enums.EquipmentItemType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "equipment_offers")
+public class EquipmentOffer {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pitch_id", nullable = false)
+    private Pitch pitch;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EquipmentItemType itemType;
+
+    @Column(nullable = false)
+    private Integer stockTotal;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal rentFixedPrice;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Pitch getPitch() {
+        return pitch;
+    }
+
+    public void setPitch(Pitch pitch) {
+        this.pitch = pitch;
+    }
+
+    public EquipmentItemType getItemType() {
+        return itemType;
+    }
+
+    public void setItemType(EquipmentItemType itemType) {
+        this.itemType = itemType;
+    }
+
+    public Integer getStockTotal() {
+        return stockTotal;
+    }
+
+    public void setStockTotal(Integer stockTotal) {
+        this.stockTotal = stockTotal;
+    }
+
+    public BigDecimal getRentFixedPrice() {
+        return rentFixedPrice;
+    }
+
+    public void setRentFixedPrice(BigDecimal rentFixedPrice) {
+        this.rentFixedPrice = rentFixedPrice;
+    }
+}
+
+
+Файл Pitch.java
+
+package by.bsuir.pitchmarketplace.domain.entity;
+
+import by.bsuir.pitchmarketplace.domain.enums.PitchType;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "pitches")
+public class Pitch {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "venue_id", nullable = false)
+    private Venue venue;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PitchType type;
+
+    @Column(nullable = false)
+    private String surface;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal pricePerHour;
+
+    @Column(nullable = false)
+    private String district;
+
+    @Column(nullable = false)
+    private String metro;
+
+    @Column(nullable = false)
+    private Double lat;
+
+    @Column(nullable = false)
+    private Double lng;
+
+    @Column(nullable = false)
+    private Double averageSkill;
+
+    @Column(nullable = false)
+    private Boolean active;
+
+    @OneToMany(mappedBy = "pitch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<EquipmentOffer> equipmentOffers = new ArrayList<>();
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Venue getVenue() {
+        return venue;
+    }
+
+    public void setVenue(Venue venue) {
+        this.venue = venue;
+    }
+
+    public PitchType getType() {
+        return type;
+    }
+
+    public void setType(PitchType type) {
+        this.type = type;
+    }
+
+    public String getSurface() {
+        return surface;
+    }
+
+    public void setSurface(String surface) {
+        this.surface = surface;
+    }
+
+    public BigDecimal getPricePerHour() {
+        return pricePerHour;
+    }
+
+    public void setPricePerHour(BigDecimal pricePerHour) {
+        this.pricePerHour = pricePerHour;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
+    public String getMetro() {
+        return metro;
+    }
+
+    public void setMetro(String metro) {
+        this.metro = metro;
+    }
+
+    public Double getLat() {
+        return lat;
+    }
+
+    public void setLat(Double lat) {
+        this.lat = lat;
+    }
+
+    public Double getLng() {
+        return lng;
+    }
+
+    public void setLng(Double lng) {
+        this.lng = lng;
+    }
+
+    public Double getAverageSkill() {
+        return averageSkill;
+    }
+
+    public void setAverageSkill(Double averageSkill) {
+        this.averageSkill = averageSkill;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public List<EquipmentOffer> getEquipmentOffers() {
+        return equipmentOffers;
+    }
+
+    public void setEquipmentOffers(List<EquipmentOffer> equipmentOffers) {
+        this.equipmentOffers = equipmentOffers;
+    }
+}
+
+
+Файл User.java
+
+package by.bsuir.pitchmarketplace.domain.entity;
+
+import by.bsuir.pitchmarketplace.domain.enums.UserRole;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "users")
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role;
+
+    @Column(nullable = false)
+    private Integer rating;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    public void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+
+    public Integer getRating() {
+        return rating;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+}
+
+
+Файл Venue.java
+
+package by.bsuir.pitchmarketplace.domain.entity;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "venues")
+public class Venue {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private Long ownerUserId;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String address;
+
+    @Column(nullable = false)
+    private Boolean active;
+
+    @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Pitch> pitches = new ArrayList<>();
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public List<Pitch> getPitches() {
+        return pitches;
+    }
+
+    public void setPitches(List<Pitch> pitches) {
+        this.pitches = pitches;
+    }
+}
+
+
+Файл BookingStatus.java
+
+package by.bsuir.pitchmarketplace.domain.enums;
+
+public enum BookingStatus {
+    LOCKED,
+    CONFIRMED,
+    CANCELLED,
+    EXPIRED
+}
+
+
+Файл EquipmentItemType.java
+
+package by.bsuir.pitchmarketplace.domain.enums;
+
+public enum EquipmentItemType {
+    BALL,
+    BIBS
+}
+
+
+Файл PitchType.java
+
+package by.bsuir.pitchmarketplace.domain.enums;
+
+public enum PitchType {
+    FIVE_TURF,
+    FIVE_FUTSAL,
+    EIGHT,
+    ELEVEN
+}
+
+
+Файл SortOption.java
+
+package by.bsuir.pitchmarketplace.domain.enums;
+
+public enum SortOption {
+    PRICE_ASC,
+    PRICE_DESC,
+    AVG_SKILL_ASC,
+    AVG_SKILL_DESC,
+    DISTANCE_TO_ME_ASC,
+    DISTANCE_TO_ME_DESC
+}
+
+
+Файл UserRole.java
+
+package by.bsuir.pitchmarketplace.domain.enums;
+
+public enum UserRole {
+    PLAYER,
+    VENUE_OWNER,
+    ADMIN
+}
+
+
+Файл EquipmentOfferResponse.java
+
+package by.bsuir.pitchmarketplace.dto;
+
+import by.bsuir.pitchmarketplace.domain.enums.EquipmentItemType;
+import java.math.BigDecimal;
+
+public record EquipmentOfferResponse(
+        EquipmentItemType itemType,
+        Integer stockTotal,
+        BigDecimal rentFixedPrice
+) {
+}
+
+
+Файл InventoryAvailabilityResponse.java
+
+package by.bsuir.pitchmarketplace.dto;
+
+import java.math.BigDecimal;
+
+public record InventoryAvailabilityResponse(
+        boolean hasRequestedEquipment,
+        Integer availableBalls,
+        Integer availableBibs,
+        BigDecimal ballRentPrice,
+        BigDecimal bibsRentPrice
+) {
+}
+
+
+Файл PitchDetailsResponse.java
+
+package by.bsuir.pitchmarketplace.dto;
+
+import by.bsuir.pitchmarketplace.domain.enums.PitchType;
+import java.math.BigDecimal;
+import java.util.List;
+
+public record PitchDetailsResponse(
+        Long pitchId,
+        Long venueId,
+        String venueName,
+        String venueAddress,
+        PitchType pitchType,
+        String surface,
+        BigDecimal pricePerHour,
+        String district,
+        String metro,
+        Double lat,
+        Double lng,
+        Double averageSkill,
+        List<EquipmentOfferResponse> equipmentOffers
+) {
+}
+
+
+Файл PitchSearchRequest.java
+
+package by.bsuir.pitchmarketplace.dto;
+
+import by.bsuir.pitchmarketplace.domain.enums.PitchType;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
+
+public class PitchSearchRequest {
+
+    private PitchType pitchType;
+    private BigDecimal priceFrom;
+    private BigDecimal priceTo;
+    private Integer durationMinutes;
+    private Integer skillMin;
+    private Integer skillMax;
+    private String district;
+    private String metro;
+    private Double lat;
+    private Double lng;
+    private Double radiusKm;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime desiredStartAt;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime desiredEndAt;
+
+    private String sort;
+    private Boolean needInventory = false;
+    private Integer ballQty = 0;
+    private Integer bibsQty = 0;
+
+    public PitchType getPitchType() {
+        return pitchType;
+    }
+
+    public void setPitchType(PitchType pitchType) {
+        this.pitchType = pitchType;
+    }
+
+    public BigDecimal getPriceFrom() {
+        return priceFrom;
+    }
+
+    public void setPriceFrom(BigDecimal priceFrom) {
+        this.priceFrom = priceFrom;
+    }
+
+    public BigDecimal getPriceTo() {
+        return priceTo;
+    }
+
+    public void setPriceTo(BigDecimal priceTo) {
+        this.priceTo = priceTo;
+    }
+
+    public Integer getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public Integer getSkillMin() {
+        return skillMin;
+    }
+
+    public void setSkillMin(Integer skillMin) {
+        this.skillMin = skillMin;
+    }
+
+    public Integer getSkillMax() {
+        return skillMax;
+    }
+
+    public void setSkillMax(Integer skillMax) {
+        this.skillMax = skillMax;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
+    public String getMetro() {
+        return metro;
+    }
+
+    public void setMetro(String metro) {
+        this.metro = metro;
+    }
+
+    public Double getLat() {
+        return lat;
+    }
+
+    public void setLat(Double lat) {
+        this.lat = lat;
+    }
+
+    public Double getLng() {
+        return lng;
+    }
+
+    public void setLng(Double lng) {
+        this.lng = lng;
+    }
+
+    public Double getRadiusKm() {
+        return radiusKm;
+    }
+
+    public void setRadiusKm(Double radiusKm) {
+        this.radiusKm = radiusKm;
+    }
+
+    public LocalDateTime getDesiredStartAt() {
+        return desiredStartAt;
+    }
+
+    public void setDesiredStartAt(LocalDateTime desiredStartAt) {
+        this.desiredStartAt = desiredStartAt;
+    }
+
+    public LocalDateTime getDesiredEndAt() {
+        return desiredEndAt;
+    }
+
+    public void setDesiredEndAt(LocalDateTime desiredEndAt) {
+        this.desiredEndAt = desiredEndAt;
+    }
+
+    public String getSort() {
+        return sort;
+    }
+
+    public void setSort(String sort) {
+        this.sort = sort;
+    }
+
+    public Boolean getNeedInventory() {
+        return needInventory;
+    }
+
+    public void setNeedInventory(Boolean needInventory) {
+        this.needInventory = needInventory;
+    }
+
+    public Integer getBallQty() {
+        return ballQty;
+    }
+
+    public void setBallQty(Integer ballQty) {
+        this.ballQty = ballQty;
+    }
+
+    public Integer getBibsQty() {
+        return bibsQty;
+    }
+
+    public void setBibsQty(Integer bibsQty) {
+        this.bibsQty = bibsQty;
+    }
+}
+
+
+Файл PitchSearchResponse.java
+
+package by.bsuir.pitchmarketplace.dto;
+
+import by.bsuir.pitchmarketplace.domain.enums.PitchType;
+import java.math.BigDecimal;
+
+public record PitchSearchResponse(
+        Long pitchId,
+        Long venueId,
+        String venueName,
+        String venueAddress,
+        PitchType pitchType,
+        String surface,
+        BigDecimal pricePerHour,
+        String district,
+        String metro,
+        Double lat,
+        Double lng,
+        Double averageSkill,
+        Double skillDistanceToMe,
+        Double distanceKm,
+        InventoryAvailabilityResponse inventory
+) {
+}
+
+
+Файл ApiErrorResponse.java
+
+package by.bsuir.pitchmarketplace.exception;
+
+import java.time.LocalDateTime;
+
+public record ApiErrorResponse(
+        LocalDateTime timestamp,
+        int status,
+        String error,
+        String message,
+        String path
+) {
+}
+
+
+Файл BadRequestException.java
+
+package by.bsuir.pitchmarketplace.exception;
+
+public class BadRequestException extends RuntimeException {
+
+    public BadRequestException(String message) {
+        super(message);
+    }
+}
+
+
+Файл ConflictException.java
+
+package by.bsuir.pitchmarketplace.exception;
+
+public class ConflictException extends RuntimeException {
+
+    public ConflictException(String message) {
+        super(message);
+    }
+}
+
+
+Файл GlobalExceptionHandler.java
+
+package by.bsuir.pitchmarketplace.exception;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import java.time.LocalDateTime;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotFound(NotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler({BadRequestException.class, MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    public ResponseEntity<ApiErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleOther(Exception ex, HttpServletRequest request) {
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request.getRequestURI());
+    }
+
+    private ResponseEntity<ApiErrorResponse> build(HttpStatus status, String message, String path) {
+        ApiErrorResponse body = new ApiErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                path
+        );
+        return ResponseEntity.status(status).body(body);
+    }
+}
+
+
+Файл NotFoundException.java
+
+package by.bsuir.pitchmarketplace.exception;
+
+public class NotFoundException extends RuntimeException {
+
+    public NotFoundException(String message) {
+        super(message);
+    }
+}
+
+
+Файл PitchMapper.java
+
+package by.bsuir.pitchmarketplace.mapper;
+
+import by.bsuir.pitchmarketplace.domain.entity.EquipmentOffer;
+import by.bsuir.pitchmarketplace.domain.entity.Pitch;
+import by.bsuir.pitchmarketplace.dto.EquipmentOfferResponse;
+import by.bsuir.pitchmarketplace.dto.InventoryAvailabilityResponse;
+import by.bsuir.pitchmarketplace.dto.PitchDetailsResponse;
+import by.bsuir.pitchmarketplace.dto.PitchSearchResponse;
+import java.util.Comparator;
+import java.util.List;
+import org.springframework.stereotype.Component;
+
+@Component
+public class PitchMapper {
+
+    public PitchSearchResponse toSearchResponse(
+            Pitch pitch,
+            Double skillDistanceToMe,
+            Double distanceKm,
+            InventoryAvailabilityResponse inventory
+    ) {
+        return new PitchSearchResponse(
+                pitch.getId(),
+                pitch.getVenue().getId(),
+                pitch.getVenue().getName(),
+                pitch.getVenue().getAddress(),
+                pitch.getType(),
+                pitch.getSurface(),
+                pitch.getPricePerHour(),
+                pitch.getDistrict(),
+                pitch.getMetro(),
+                pitch.getLat(),
+                pitch.getLng(),
+                pitch.getAverageSkill(),
+                skillDistanceToMe,
+                distanceKm,
+                inventory
+        );
+    }
+
+    public PitchDetailsResponse toDetailsResponse(Pitch pitch) {
+        List<EquipmentOfferResponse> equipment = pitch.getEquipmentOffers().stream()
+                .sorted(Comparator.comparing(EquipmentOffer::getItemType))
+                .map(this::toEquipmentOfferResponse)
+                .toList();
+
+        return new PitchDetailsResponse(
+                pitch.getId(),
+                pitch.getVenue().getId(),
+                pitch.getVenue().getName(),
+                pitch.getVenue().getAddress(),
+                pitch.getType(),
+                pitch.getSurface(),
+                pitch.getPricePerHour(),
+                pitch.getDistrict(),
+                pitch.getMetro(),
+                pitch.getLat(),
+                pitch.getLng(),
+                pitch.getAverageSkill(),
+                equipment
+        );
+    }
+
+    private EquipmentOfferResponse toEquipmentOfferResponse(EquipmentOffer offer) {
+        return new EquipmentOfferResponse(
+                offer.getItemType(),
+                offer.getStockTotal(),
+                offer.getRentFixedPrice()
+        );
+    }
+}
+
+
+Файл BookingRepository.java
+
+package by.bsuir.pitchmarketplace.repository;
+
+import by.bsuir.pitchmarketplace.domain.entity.Booking;
+import by.bsuir.pitchmarketplace.domain.enums.BookingStatus;
+import java.time.LocalDateTime;
+import java.util.Collection;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface BookingRepository extends JpaRepository<Booking, Long> {
+
+    @Query("""
+            select case when count(b) > 0 then true else false end
+            from Booking b
+            where b.pitch.id = :pitchId
+              and b.status in :statuses
+              and b.startAt < :endAt
+              and b.endAt > :startAt
+            """)
+    boolean existsOverlappingBooking(
+            @Param("pitchId") Long pitchId,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt,
+            @Param("statuses") Collection<BookingStatus> statuses
+    );
+}
+
+
+Файл EquipmentOfferRepository.java
+
+package by.bsuir.pitchmarketplace.repository;
+
+import by.bsuir.pitchmarketplace.domain.entity.EquipmentOffer;
+import by.bsuir.pitchmarketplace.domain.enums.EquipmentItemType;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface EquipmentOfferRepository extends JpaRepository<EquipmentOffer, Long> {
+
+    List<EquipmentOffer> findByPitchId(Long pitchId);
+
+    Optional<EquipmentOffer> findByPitchIdAndItemType(Long pitchId, EquipmentItemType itemType);
+}
+
+
+Файл PitchRepository.java
+
+package by.bsuir.pitchmarketplace.repository;
+
+import by.bsuir.pitchmarketplace.domain.entity.Pitch;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PitchRepository extends JpaRepository<Pitch, Long> {
+
+    @EntityGraph(attributePaths = {"venue", "equipmentOffers"})
+    List<Pitch> findByActiveTrue();
+
+    @EntityGraph(attributePaths = {"venue", "equipmentOffers"})
+    Optional<Pitch> findById(Long id);
+}
+
+
+Файл UserRepository.java
+
+package by.bsuir.pitchmarketplace.repository;
+
+import by.bsuir.pitchmarketplace.domain.entity.User;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    Optional<User> findByEmail(String email);
+}
+
+
+Файл VenueRepository.java
+
+package by.bsuir.pitchmarketplace.repository;
+
+import by.bsuir.pitchmarketplace.domain.entity.Venue;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface VenueRepository extends JpaRepository<Venue, Long> {
+
+    @EntityGraph(attributePaths = {"pitches", "pitches.equipmentOffers"})
+    Optional<Venue> findById(Long id);
+}
+
+
+Файл PitchService.java
+
+package by.bsuir.pitchmarketplace.service;
+
+import by.bsuir.pitchmarketplace.domain.entity.EquipmentOffer;
+import by.bsuir.pitchmarketplace.domain.entity.Pitch;
+import by.bsuir.pitchmarketplace.domain.entity.User;
+import by.bsuir.pitchmarketplace.domain.enums.BookingStatus;
+import by.bsuir.pitchmarketplace.domain.enums.EquipmentItemType;
+import by.bsuir.pitchmarketplace.domain.enums.SortOption;
+import by.bsuir.pitchmarketplace.dto.InventoryAvailabilityResponse;
+import by.bsuir.pitchmarketplace.dto.PitchDetailsResponse;
+import by.bsuir.pitchmarketplace.dto.PitchSearchRequest;
+import by.bsuir.pitchmarketplace.dto.PitchSearchResponse;
+import by.bsuir.pitchmarketplace.exception.BadRequestException;
+import by.bsuir.pitchmarketplace.exception.NotFoundException;
+import by.bsuir.pitchmarketplace.mapper.PitchMapper;
+import by.bsuir.pitchmarketplace.repository.BookingRepository;
+import by.bsuir.pitchmarketplace.repository.PitchRepository;
+import by.bsuir.pitchmarketplace.repository.UserRepository;
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional(readOnly = true)
+public class PitchService {
+
+    private static final List<BookingStatus> BLOCKING_STATUSES = List.of(BookingStatus.LOCKED, BookingStatus.CONFIRMED);
+
+    private final PitchRepository pitchRepository;
+    private final BookingRepository bookingRepository;
+    private final UserRepository userRepository;
+    private final PitchMapper pitchMapper;
+
+    public PitchService(
+            PitchRepository pitchRepository,
+            BookingRepository bookingRepository,
+            UserRepository userRepository,
+            PitchMapper pitchMapper
+    ) {
+        this.pitchRepository = pitchRepository;
+        this.bookingRepository = bookingRepository;
+        this.userRepository = userRepository;
+        this.pitchMapper = pitchMapper;
+    }
+
+    public List<PitchSearchResponse> search(PitchSearchRequest request, Long requesterUserId) {
+        validateRequest(request);
+        SortOption sortOption = parseSort(request.getSort());
+        User requester = resolveRequester(sortOption, requesterUserId);
+
+        List<PitchCandidate> candidates = pitchRepository.findByActiveTrue().stream()
+                .filter(pitch -> matchesPitchFilters(pitch, request))
+                .filter(pitch -> matchesSkillFilter(pitch, request.getSkillMin(), request.getSkillMax()))
+                .map(pitch -> toCandidate(pitch, request, requester))
+                .filter(candidate -> candidate != null)
+                .sorted(comparatorFor(sortOption))
+                .toList();
+
+        return candidates.stream()
+                .map(candidate -> pitchMapper.toSearchResponse(
+                        candidate.pitch(),
+                        candidate.skillDistanceToMe(),
+                        candidate.distanceKm(),
+                        candidate.inventory()
+                ))
+                .toList();
+    }
+
+    public PitchDetailsResponse getById(Long id) {
+        Pitch pitch = pitchRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Pitch with id %d was not found".formatted(id)));
+        return pitchMapper.toDetailsResponse(pitch);
+    }
+
+    private PitchCandidate toCandidate(Pitch pitch, PitchSearchRequest request, User requester) {
+        if (!matchesAvailabilityFilter(pitch, request.getDesiredStartAt(), request.getDesiredEndAt())) {
+            return null;
+        }
+
+        Double distanceKm = calculateDistanceKm(request.getLat(), request.getLng(), pitch.getLat(), pitch.getLng());
+        if (request.getRadiusKm() != null && distanceKm != null && distanceKm > request.getRadiusKm()) {
+            return null;
+        }
+
+        InventoryAvailabilityResponse inventory = buildInventory(pitch, request);
+        if (Boolean.TRUE.equals(request.getNeedInventory()) && !inventory.hasRequestedEquipment()) {
+            return null;
+        }
+
+        Double skillDistanceToMe = null;
+        if (requester != null) {
+            skillDistanceToMe = Math.abs(requester.getRating() - pitch.getAverageSkill());
+        }
+
+        return new PitchCandidate(pitch, distanceKm, skillDistanceToMe, inventory);
+    }
+
+    private InventoryAvailabilityResponse buildInventory(Pitch pitch, PitchSearchRequest request) {
+        Map<EquipmentItemType, EquipmentOffer> offers = new EnumMap<>(EquipmentItemType.class);
+        for (EquipmentOffer offer : pitch.getEquipmentOffers()) {
+            offers.put(offer.getItemType(), offer);
+        }
+
+        EquipmentOffer ballsOffer = offers.get(EquipmentItemType.BALL);
+        EquipmentOffer bibsOffer = offers.get(EquipmentItemType.BIBS);
+
+        int ballsAvailable = ballsOffer == null ? 0 : ballsOffer.getStockTotal();
+        int bibsAvailable = bibsOffer == null ? 0 : bibsOffer.getStockTotal();
+
+        int requestedBalls = request.getBallQty() == null ? 0 : request.getBallQty();
+        int requestedBibs = request.getBibsQty() == null ? 0 : request.getBibsQty();
+
+        boolean hasRequested = ballsAvailable >= requestedBalls && bibsAvailable >= requestedBibs;
+
+        return new InventoryAvailabilityResponse(
+                hasRequested,
+                ballsAvailable,
+                bibsAvailable,
+                ballsOffer == null ? null : ballsOffer.getRentFixedPrice(),
+                bibsOffer == null ? null : bibsOffer.getRentFixedPrice()
+        );
+    }
+
+    private boolean matchesPitchFilters(Pitch pitch, PitchSearchRequest request) {
+        if (request.getPitchType() != null && request.getPitchType() != pitch.getType()) {
+            return false;
+        }
+        if (request.getPriceFrom() != null && pitch.getPricePerHour().compareTo(request.getPriceFrom()) < 0) {
+            return false;
+        }
+        if (request.getPriceTo() != null && pitch.getPricePerHour().compareTo(request.getPriceTo()) > 0) {
+            return false;
+        }
+        if (request.getDistrict() != null && !request.getDistrict().isBlank()) {
+            if (!pitch.getDistrict().equalsIgnoreCase(request.getDistrict().trim())) {
+                return false;
+            }
+        }
+        if (request.getMetro() != null && !request.getMetro().isBlank()) {
+            if (!pitch.getMetro().equalsIgnoreCase(request.getMetro().trim())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean matchesSkillFilter(Pitch pitch, Integer skillMin, Integer skillMax) {
+        if (skillMin != null && pitch.getAverageSkill() < skillMin) {
+            return false;
+        }
+        if (skillMax != null && pitch.getAverageSkill() > skillMax) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean matchesAvailabilityFilter(Pitch pitch, LocalDateTime desiredStartAt, LocalDateTime desiredEndAt) {
+        if (desiredStartAt == null || desiredEndAt == null) {
+            return true;
+        }
+        boolean hasOverlap = bookingRepository.existsOverlappingBooking(
+                pitch.getId(),
+                desiredStartAt,
+                desiredEndAt,
+                BLOCKING_STATUSES
+        );
+        return !hasOverlap;
+    }
+
+    private Comparator<PitchCandidate> comparatorFor(SortOption sortOption) {
+        return switch (sortOption) {
+            case PRICE_ASC -> Comparator.comparing(candidate -> candidate.pitch().getPricePerHour());
+            case PRICE_DESC -> Comparator.comparing((PitchCandidate candidate) -> candidate.pitch().getPricePerHour()).reversed();
+            case AVG_SKILL_ASC -> Comparator.comparing(candidate -> candidate.pitch().getAverageSkill());
+            case AVG_SKILL_DESC -> Comparator.comparing((PitchCandidate candidate) -> candidate.pitch().getAverageSkill()).reversed();
+            case DISTANCE_TO_ME_ASC -> Comparator.comparing(PitchCandidate::skillDistanceToMe, Comparator.nullsLast(Double::compareTo));
+            case DISTANCE_TO_ME_DESC -> Comparator.comparing(PitchCandidate::skillDistanceToMe, Comparator.nullsLast(Double::compareTo)).reversed();
+        };
+    }
+
+    private User resolveRequester(SortOption sortOption, Long requesterUserId) {
+        if (sortOption == SortOption.DISTANCE_TO_ME_ASC || sortOption == SortOption.DISTANCE_TO_ME_DESC) {
+            if (requesterUserId == null) {
+                throw new BadRequestException("X-User-Id header is required for distance_to_me sorting");
+            }
+            return userRepository.findById(requesterUserId)
+                    .orElseThrow(() -> new NotFoundException("User with id %d was not found".formatted(requesterUserId)));
+        }
+        return null;
+    }
+
+    private SortOption parseSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return SortOption.PRICE_ASC;
+        }
+        try {
+            return SortOption.valueOf(sort.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Unsupported sort option: " + sort);
+        }
+    }
+
+    private void validateRequest(PitchSearchRequest request) {
+        validatePrice(request.getPriceFrom(), request.getPriceTo());
+        validateDuration(request.getDurationMinutes());
+        validateSkill(request.getSkillMin(), request.getSkillMax());
+        validateTime(request.getDesiredStartAt(), request.getDesiredEndAt(), request.getDurationMinutes());
+        validateGeo(request.getLat(), request.getLng(), request.getRadiusKm());
+        validateInventory(request.getBallQty(), request.getBibsQty());
+    }
+
+    private void validatePrice(BigDecimal priceFrom, BigDecimal priceTo) {
+        if (priceFrom != null && priceTo != null && priceFrom.compareTo(priceTo) > 0) {
+            throw new BadRequestException("priceFrom must be less than or equal to priceTo");
+        }
+    }
+
+    private void validateDuration(Integer durationMinutes) {
+        if (durationMinutes == null) {
+            return;
+        }
+        if (durationMinutes < 60 || durationMinutes > 180 || durationMinutes % 30 != 0) {
+            throw new BadRequestException("durationMinutes must be between 60 and 180 with 30-minute step");
+        }
+    }
+
+    private void validateSkill(Integer skillMin, Integer skillMax) {
+        if (skillMin != null && (skillMin < 1 || skillMin > 100)) {
+            throw new BadRequestException("skillMin must be between 1 and 100");
+        }
+        if (skillMax != null && (skillMax < 1 || skillMax > 100)) {
+            throw new BadRequestException("skillMax must be between 1 and 100");
+        }
+        if (skillMin != null && skillMax != null && skillMin > skillMax) {
+            throw new BadRequestException("skillMin must be less than or equal to skillMax");
+        }
+    }
+
+    private void validateTime(LocalDateTime desiredStartAt, LocalDateTime desiredEndAt, Integer durationMinutes) {
+        if ((desiredStartAt == null && desiredEndAt != null) || (desiredStartAt != null && desiredEndAt == null)) {
+            throw new BadRequestException("desiredStartAt and desiredEndAt must be provided together");
+        }
+        if (desiredStartAt == null) {
+            return;
+        }
+        if (!desiredStartAt.isBefore(desiredEndAt)) {
+            throw new BadRequestException("desiredStartAt must be before desiredEndAt");
+        }
+        long minutes = Duration.between(desiredStartAt, desiredEndAt).toMinutes();
+        if (minutes < 60 || minutes > 180 || minutes % 30 != 0) {
+            throw new BadRequestException("Time window must be between 60 and 180 minutes with 30-minute step");
+        }
+        if (durationMinutes != null && minutes != durationMinutes) {
+            throw new BadRequestException("durationMinutes must match desired time window length");
+        }
+    }
+
+    private void validateGeo(Double lat, Double lng, Double radiusKm) {
+        if (radiusKm != null) {
+            if (lat == null || lng == null) {
+                throw new BadRequestException("lat and lng are required when radiusKm is provided");
+            }
+            if (radiusKm <= 0) {
+                throw new BadRequestException("radiusKm must be greater than 0");
+            }
+        }
+    }
+
+    private void validateInventory(Integer ballQty, Integer bibsQty) {
+        if (ballQty != null && ballQty < 0) {
+            throw new BadRequestException("ballQty must be greater than or equal to 0");
+        }
+        if (bibsQty != null && bibsQty < 0) {
+            throw new BadRequestException("bibsQty must be greater than or equal to 0");
+        }
+    }
+
+    private Double calculateDistanceKm(Double fromLat, Double fromLng, Double toLat, Double toLng) {
+        if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+            return null;
+        }
+        double earthRadiusKm = 6371.0;
+        double dLat = Math.toRadians(toLat - fromLat);
+        double dLng = Math.toRadians(toLng - fromLng);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(fromLat)) * Math.cos(Math.toRadians(toLat))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
+    }
+
+    private record PitchCandidate(
+            Pitch pitch,
+            Double distanceKm,
+            Double skillDistanceToMe,
+            InventoryAvailabilityResponse inventory
+    ) {
+    }
+}
+
+
+Файл application.properties
+
+spring.application.name=football-pitch-marketplace
+spring.datasource.url=jdbc:h2:mem:pitchdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+spring.datasource.username=sa
+spring.datasource.password=
+spring.datasource.driverClassName=org.h2.Driver
+spring.jpa.hibernate.ddl-auto=create
+spring.jpa.open-in-view=false
+spring.jpa.defer-datasource-initialization=true
+spring.sql.init.mode=always
+spring.h2.console.enabled=true
+spring.jackson.time-zone=Europe/Minsk
+
+
+Файл data.sql
+
+INSERT INTO users (id, email, password_hash, role, rating, created_at) VALUES
+    (1, 'player1@minsk.by', 'hash1', 'PLAYER', 35, TIMESTAMP '2026-01-01 10:00:00'),
+    (2, 'player2@minsk.by', 'hash2', 'PLAYER', 55, TIMESTAMP '2026-01-01 10:00:00'),
+    (3, 'player3@minsk.by', 'hash3', 'PLAYER', 72, TIMESTAMP '2026-01-01 10:00:00'),
+    (4, 'player4@minsk.by', 'hash4', 'PLAYER', 88, TIMESTAMP '2026-01-01 10:00:00'),
+    (5, 'owner1@minsk.by', 'hash5', 'VENUE_OWNER', 60, TIMESTAMP '2026-01-01 10:00:00'),
+    (6, 'admin@minsk.by', 'hash6', 'ADMIN', 65, TIMESTAMP '2026-01-01 10:00:00');
+
+INSERT INTO venues (id, owner_user_id, name, address, active) VALUES
+    (1, 5, 'Футбольный манеж Минск Арена', 'пр-т Победителей, 111', true),
+    (2, 5, 'Олимпик Парк Футбол', 'ул. Тимирязева, 74А', true),
+    (3, 5, 'Трактор Филд', 'ул. Ванеева, 3', true);
+
+INSERT INTO pitches (id, venue_id, type, surface, price_per_hour, district, metro, lat, lng, average_skill, active) VALUES
+    (1, 1, 'FIVE_FUTSAL', 'PARQUET', 120.00, 'Центральный', 'Немига', 53.923280, 27.515820, 70.0, true),
+    (2, 1, 'FIVE_TURF', 'TURF', 90.00, 'Центральный', 'Фрунзенская', 53.907050, 27.530150, 52.0, true),
+    (3, 2, 'EIGHT', 'TURF', 150.00, 'Советский', 'Московская', 53.937600, 27.623400, 80.0, true),
+    (4, 3, 'ELEVEN', 'TURF', 200.00, 'Партизанский', 'Тракторный завод', 53.889200, 27.638300, 65.0, true),
+    (5, 2, 'FIVE_FUTSAL', 'PARQUET', 110.00, 'Ленинский', 'Пролетарская', 53.884300, 27.585000, 58.0, true);
+
+INSERT INTO equipment_offers (id, pitch_id, item_type, stock_total, rent_fixed_price) VALUES
+    (1, 1, 'BALL', 8, 20.00),
+    (2, 1, 'BIBS', 12, 15.00),
+    (3, 2, 'BALL', 4, 15.00),
+    (4, 2, 'BIBS', 6, 10.00),
+    (5, 3, 'BALL', 6, 18.00),
+    (6, 3, 'BIBS', 0, 12.00),
+    (7, 4, 'BALL', 10, 30.00),
+    (8, 4, 'BIBS', 20, 25.00),
+    (9, 5, 'BALL', 2, 17.00),
+    (10, 5, 'BIBS', 4, 9.00);
+
+INSERT INTO bookings (id, pitch_id, player_id, start_at, end_at, status, lock_expires_at, recurring, recurrence_group_id) VALUES
+    (1, 1, 1, TIMESTAMP '2026-03-01 18:30:00', TIMESTAMP '2026-03-01 20:00:00', 'CONFIRMED', null, false, null),
+    (2, 2, 2, TIMESTAMP '2026-03-01 16:00:00', TIMESTAMP '2026-03-01 17:00:00', 'CONFIRMED', null, false, null),
+    (3, 3, 3, TIMESTAMP '2026-03-01 21:00:00', TIMESTAMP '2026-03-01 22:00:00', 'CONFIRMED', null, false, null),
+    (4, 4, 4, TIMESTAMP '2026-03-01 19:00:00', TIMESTAMP '2026-03-01 21:00:00', 'CANCELLED', null, false, null),
+    (5, 5, 2, TIMESTAMP '2026-03-01 19:30:00', TIMESTAMP '2026-03-01 21:00:00', 'LOCKED', TIMESTAMP '2026-03-01 19:35:00', false, null);
+
+
+Файл PitchControllerIntegrationTest.java
+
+package by.bsuir.pitchmarketplace;
+
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class PitchControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void shouldFilterByTypePriceAndSkill() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("pitchType", "FIVE_FUTSAL")
+                        .param("priceTo", "120")
+                        .param("skillMin", "60")
+                        .param("skillMax", "75"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].pitchId", is(1)));
+    }
+
+    @Test
+    void shouldSortByPrice() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "price_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pitchId", is(2)));
+
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "price_desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pitchId", is(4)));
+    }
+
+    @Test
+    void shouldSortByAverageSkill() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "avg_skill_desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pitchId", is(3)));
+
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "avg_skill_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pitchId", is(2)));
+    }
+
+    @Test
+    void shouldSortByDistanceToMeWithAuthorizedUser() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "distance_to_me_asc")
+                        .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pitchId", is(2)));
+    }
+
+    @Test
+    void shouldFailDistanceToMeWithoutUserHeader() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("sort", "distance_to_me_asc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldApplyStrictTimeAvailability() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("desiredStartAt", "2026-03-01T19:00:00")
+                        .param("desiredEndAt", "2026-03-01T21:00:00")
+                        .param("sort", "price_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].pitchId", is(2)))
+                .andExpect(jsonPath("$[*].pitchId", not(org.hamcrest.Matchers.hasItem(1))))
+                .andExpect(jsonPath("$[*].pitchId", not(org.hamcrest.Matchers.hasItem(5))));
+    }
+
+    @Test
+    void shouldApplyOptionalInventoryFilter() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("needInventory", "true")
+                        .param("ballQty", "5")
+                        .param("bibsQty", "5")
+                        .param("sort", "price_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].pitchId", is(1)));
+
+        mockMvc.perform(get("/api/v1/pitches/search")
+                        .param("needInventory", "false")
+                        .param("ballQty", "5")
+                        .param("bibsQty", "5")
+                        .param("sort", "price_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(5)));
+    }
+
+    @Test
+    void shouldReturnPitchByPathVariable() throws Exception {
+        mockMvc.perform(get("/api/v1/pitches/{id}", 1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pitchId", is(1)))
+                .andExpect(jsonPath("$.venueName", is("Футбольный манеж Минск Арена")));
+    }
+}
+
+
