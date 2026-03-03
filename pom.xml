@@ -10,7 +10,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>by.bsuir</groupId>
+    <groupId>saku102007</groupId>
     <artifactId>sem-4-java</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
