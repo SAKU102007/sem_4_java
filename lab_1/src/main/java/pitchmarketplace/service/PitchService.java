@@ -172,7 +172,9 @@ public class PitchService {
             case AVG_SKILL_ASC -> Comparator.comparing(candidate -> candidate.pitch().getAverageSkill());
             case AVG_SKILL_DESC -> Comparator.comparing((PitchCandidate candidate) -> candidate.pitch().getAverageSkill()).reversed();
             case DISTANCE_TO_ME_ASC -> Comparator.comparing(PitchCandidate::skillDistanceToMe, Comparator.nullsLast(Double::compareTo));
-            case DISTANCE_TO_ME_DESC -> Comparator.comparing(PitchCandidate::skillDistanceToMe, Comparator.nullsLast(Double::compareTo)).reversed();
+            case DISTANCE_TO_ME_DESC -> Comparator
+                    .comparing(PitchCandidate::skillDistanceToMe, Comparator.nullsLast(Double::compareTo))
+                    .reversed();
         };
     }
 
