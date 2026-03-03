@@ -1,65 +1,25 @@
 package pitchmarketplace.domain.entity;
 
 import pitchmarketplace.domain.enums.PitchType;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
 
-@Entity
-@Table(name = "pitches")
 public class Pitch {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "venue_id", nullable = false)
-    private Venue venue;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    private String name;
     private PitchType type;
-
-    @Column(nullable = false)
-    private String surface;
-
-    @Column(nullable = false, precision = 10, scale = 2)
+    private String district;
+    private String metro;
     private BigDecimal pricePerHour;
 
-    @Column(nullable = false)
-    private String district;
-
-    @Column(nullable = false)
-    private String metro;
-
-    @Column(nullable = false)
-    private Double lat;
-
-    @Column(nullable = false)
-    private Double lng;
-
-    @Column(nullable = false)
-    private Double averageSkill;
-
-    @Column(nullable = false)
-    private Boolean active;
-
-    @OneToMany(mappedBy = "pitch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<EquipmentOffer> equipmentOffers = new ArrayList<>();
+    public Pitch(Long id, String name, PitchType type, String district, String metro, BigDecimal pricePerHour) {
+        this.id = id;
+        this.name = name;
+        this.type = type;
+        this.district = district;
+        this.metro = metro;
+        this.pricePerHour = pricePerHour;
+    }
 
     public Long getId() {
         return id;
@@ -69,12 +29,12 @@ public class Pitch {
         this.id = id;
     }
 
-    public Venue getVenue() {
-        return venue;
+    public String getName() {
+        return name;
     }
 
-    public void setVenue(Venue venue) {
-        this.venue = venue;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public PitchType getType() {
@@ -83,22 +43,6 @@ public class Pitch {
 
     public void setType(PitchType type) {
         this.type = type;
-    }
-
-    public String getSurface() {
-        return surface;
-    }
-
-    public void setSurface(String surface) {
-        this.surface = surface;
-    }
-
-    public BigDecimal getPricePerHour() {
-        return pricePerHour;
-    }
-
-    public void setPricePerHour(BigDecimal pricePerHour) {
-        this.pricePerHour = pricePerHour;
     }
 
     public String getDistrict() {
@@ -117,43 +61,11 @@ public class Pitch {
         this.metro = metro;
     }
 
-    public Double getLat() {
-        return lat;
+    public BigDecimal getPricePerHour() {
+        return pricePerHour;
     }
 
-    public void setLat(Double lat) {
-        this.lat = lat;
-    }
-
-    public Double getLng() {
-        return lng;
-    }
-
-    public void setLng(Double lng) {
-        this.lng = lng;
-    }
-
-    public Double getAverageSkill() {
-        return averageSkill;
-    }
-
-    public void setAverageSkill(Double averageSkill) {
-        this.averageSkill = averageSkill;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
-    }
-
-    public List<EquipmentOffer> getEquipmentOffers() {
-        return equipmentOffers;
-    }
-
-    public void setEquipmentOffers(List<EquipmentOffer> equipmentOffers) {
-        this.equipmentOffers = equipmentOffers;
+    public void setPricePerHour(BigDecimal pricePerHour) {
+        this.pricePerHour = pricePerHour;
     }
 }
