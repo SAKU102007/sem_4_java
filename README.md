@@ -54,8 +54,7 @@ lab_1/src/test/java/by/bsuir/pitchmarketplace
 ## Запуск проекта
 
 ```bash
-cd lab_1
-./mvnw spring-boot:run
+./mvnw -pl lab_1 spring-boot:run
 ```
 
 Приложение стартует на `http://localhost:8080`.
@@ -110,8 +109,7 @@ curl "http://localhost:8080/api/v1/pitches/1"
 Запуск тестов:
 
 ```bash
-cd lab_1
-./mvnw test
+./mvnw -pl lab_1 test
 ```
 
 В проекте есть интеграционные тесты `PitchControllerIntegrationTest`, которые проверяют:
