@@ -112,6 +112,12 @@ curl "http://localhost:8080/api/v1/pitches/1"
 ./mvnw -pl lab_1 test
 ```
 
+Проверка Checkstyle:
+
+```bash
+./mvnw -DskipTests checkstyle:check -pl lab_1
+```
+
 В проекте есть интеграционные тесты `PitchControllerIntegrationTest`, которые проверяют:
 - фильтрацию,
 - сортировки,
@@ -123,3 +129,7 @@ curl "http://localhost:8080/api/v1/pitches/1"
 ## Автор
 
 Студенческий проект для лабораторной работы.
+
+## SonarCloud
+
+- Проект: https://sonarcloud.io/summary/new_code?id=SAKU102007_sem_4_java&branch=main
