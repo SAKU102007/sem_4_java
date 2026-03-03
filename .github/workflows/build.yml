@@ -30,4 +30,5 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build and test
+        working-directory: lab_1
         run: ./mvnw -B verify
