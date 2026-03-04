@@ -3,8 +3,7 @@ package pitchmarketplace.dto;
 import java.math.BigDecimal;
 import pitchmarketplace.domain.enums.PitchType;
 
-public record PitchDto(
-        Long id,
+public record PitchUpsertRequest(
         String name,
         PitchType type,
         String district,

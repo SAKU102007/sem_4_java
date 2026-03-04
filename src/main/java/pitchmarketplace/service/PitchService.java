@@ -1,36 +1,79 @@
 package pitchmarketplace.service;
 
-import pitchmarketplace.dto.PitchDto;
-import pitchmarketplace.mapper.PitchMapper;
-import pitchmarketplace.repository.PitchRepository;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import pitchmarketplace.domain.entity.Pitch;
+import pitchmarketplace.dto.PitchDto;
+import pitchmarketplace.dto.PitchUpsertRequest;
+import pitchmarketplace.exception.ResourceNotFoundException;
+import pitchmarketplace.repository.PitchRepository;
 
 @Service
+@Transactional
 public class PitchService {
 
     private final PitchRepository repository;
-    private final PitchMapper mapper;
 
-    public PitchService(PitchRepository repository, PitchMapper mapper) {
+    public PitchService(PitchRepository repository) {
         this.repository = repository;
-        this.mapper = mapper;
     }
 
+    @Transactional(readOnly = true)
     public List<PitchDto> findAll(String district) {
         if (district == null || district.isBlank()) {
             return repository.findAll().stream()
-                    .map(mapper::toDto)
+                    .map(this::toDto)
                     .toList();
         }
-        return repository.findByDistrict(district.trim()).stream()
-                .map(mapper::toDto)
+        return repository.findByDistrictIgnoreCase(district.trim()).stream()
+                .map(this::toDto)
                 .toList();
     }
 
-    public Optional<PitchDto> findById(Long id) {
+    @Transactional(readOnly = true)
+    public PitchDto findById(Long id) {
+        return toDto(getOrThrow(id));
+    }
+
+    public PitchDto create(PitchUpsertRequest request) {
+        Pitch pitch = new Pitch();
+        applyRequest(pitch, request);
+        return toDto(repository.save(pitch));
+    }
+
+    public PitchDto update(Long id, PitchUpsertRequest request) {
+        Pitch pitch = getOrThrow(id);
+        applyRequest(pitch, request);
+        return toDto(repository.save(pitch));
+    }
+
+    public void delete(Long id) {
+        Pitch pitch = getOrThrow(id);
+        repository.delete(pitch);
+    }
+
+    private Pitch getOrThrow(Long id) {
         return repository.findById(id)
-                .map(mapper::toDto);
+                .orElseThrow(() -> new ResourceNotFoundException("Pitch not found. id=" + id));
+    }
+
+    private void applyRequest(Pitch pitch, PitchUpsertRequest request) {
+        pitch.setName(request.name());
+        pitch.setType(request.type());
+        pitch.setDistrict(request.district());
+        pitch.setMetro(request.metro());
+        pitch.setPricePerHour(request.pricePerHour());
+    }
+
+    private PitchDto toDto(Pitch pitch) {
+        return new PitchDto(
+                pitch.getId(),
+                pitch.getName(),
+                pitch.getType(),
+                pitch.getDistrict(),
+                pitch.getMetro(),
+                pitch.getPricePerHour()
+        );
     }
 }

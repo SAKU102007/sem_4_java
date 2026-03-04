@@ -10,40 +10,39 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pitchmarketplace.dto.PitchDto;
-import pitchmarketplace.dto.PitchUpsertRequest;
-import pitchmarketplace.service.PitchService;
+import pitchmarketplace.dto.OpenGameDto;
+import pitchmarketplace.dto.OpenGameUpsertRequest;
+import pitchmarketplace.service.OpenGameService;
 
 @RestController
-@RequestMapping("/api/v1/pitches")
-public class PitchController {
+@RequestMapping("/api/v1/open-games")
+public class OpenGameController {
 
-    private final PitchService service;
+    private final OpenGameService service;
 
-    public PitchController(PitchService service) {
+    public OpenGameController(OpenGameService service) {
         this.service = service;
     }
 
     @GetMapping
-    public ResponseEntity<List<PitchDto>> getAll(@RequestParam(required = false) String district) {
-        return ResponseEntity.ok(service.findAll(district));
+    public ResponseEntity<List<OpenGameDto>> getAll() {
+        return ResponseEntity.ok(service.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PitchDto> getById(@PathVariable Long id) {
+    public ResponseEntity<OpenGameDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<PitchDto> create(@RequestBody PitchUpsertRequest request) {
-        PitchDto created = service.create(request);
-        return ResponseEntity.created(URI.create("/api/v1/pitches/" + created.id())).body(created);
+    public ResponseEntity<OpenGameDto> create(@RequestBody OpenGameUpsertRequest request) {
+        OpenGameDto created = service.create(request);
+        return ResponseEntity.created(URI.create("/api/v1/open-games/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PitchDto> update(@PathVariable Long id, @RequestBody PitchUpsertRequest request) {
+    public ResponseEntity<OpenGameDto> update(@PathVariable Long id, @RequestBody OpenGameUpsertRequest request) {
         return ResponseEntity.ok(service.update(id, request));
     }
 

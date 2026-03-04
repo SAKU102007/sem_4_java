@@ -10,40 +10,39 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pitchmarketplace.dto.PitchDto;
-import pitchmarketplace.dto.PitchUpsertRequest;
-import pitchmarketplace.service.PitchService;
+import pitchmarketplace.dto.EquipmentOfferDto;
+import pitchmarketplace.dto.EquipmentOfferUpsertRequest;
+import pitchmarketplace.service.EquipmentOfferService;
 
 @RestController
-@RequestMapping("/api/v1/pitches")
-public class PitchController {
+@RequestMapping("/api/v1/equipment-offers")
+public class EquipmentOfferController {
 
-    private final PitchService service;
+    private final EquipmentOfferService service;
 
-    public PitchController(PitchService service) {
+    public EquipmentOfferController(EquipmentOfferService service) {
         this.service = service;
     }
 
     @GetMapping
-    public ResponseEntity<List<PitchDto>> getAll(@RequestParam(required = false) String district) {
-        return ResponseEntity.ok(service.findAll(district));
+    public ResponseEntity<List<EquipmentOfferDto>> getAll() {
+        return ResponseEntity.ok(service.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PitchDto> getById(@PathVariable Long id) {
+    public ResponseEntity<EquipmentOfferDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<PitchDto> create(@RequestBody PitchUpsertRequest request) {
-        PitchDto created = service.create(request);
-        return ResponseEntity.created(URI.create("/api/v1/pitches/" + created.id())).body(created);
+    public ResponseEntity<EquipmentOfferDto> create(@RequestBody EquipmentOfferUpsertRequest request) {
+        EquipmentOfferDto created = service.create(request);
+        return ResponseEntity.created(URI.create("/api/v1/equipment-offers/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PitchDto> update(@PathVariable Long id, @RequestBody PitchUpsertRequest request) {
+    public ResponseEntity<EquipmentOfferDto> update(@PathVariable Long id, @RequestBody EquipmentOfferUpsertRequest request) {
         return ResponseEntity.ok(service.update(id, request));
     }
 

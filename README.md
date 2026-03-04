@@ -1,132 +1,154 @@
 # Football Pitch Marketplace Minsk
 
-> Лабораторная работа №1 по Java/Spring Boot (БГУИР)
+> Лабораторная работа по JPA (Hibernate/Spring Data)
 
 [![Java 17](https://img.shields.io/badge/Java-17-orange)](https://adoptium.net/)
 [![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.0%2B-brightgreen)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-3.9%2B-blue)](https://maven.apache.org/)
-[![H2](https://img.shields.io/badge/Database-H2-lightgrey)](https://www.h2database.com/html/main.html)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)](https://www.postgresql.org/)
 
-REST-сервис для поиска футбольных полей в Минске с фильтрацией, сортировкой, проверкой доступности по времени и опциональным учетом инвентаря.
+## Что реализовано по условиям
 
-## О проекте
+1. Подключена реляционная БД: `PostgreSQL` + `Spring Data JPA` + `Hibernate`.
+2. Реализовано 5 сущностей:
+- `User`
+- `Pitch`
+- `Booking`
+- `OpenGame`
+- `EquipmentOffer`
+3. Реализован CRUD API для всех 5 сущностей.
+4. Настроены и обоснованы `CascadeType` и `FetchType`.
+5. Продемонстрирована проблема `N+1` и решение через `@EntityGraph`.
+6. Продемонстрировано частичное сохранение без `@Transactional` и полный rollback с `@Transactional`.
+7. Нарисована ER-диаграмма с PK/FK и связями: [docs/ER_DIAGRAM.md](docs/ER_DIAGRAM.md).
 
-В проекте реализованы требования лабораторной работы:
-- `GET` endpoint с `@RequestParam`: расширенный поиск полей
-- `GET` endpoint с `@PathVariable`: получение поля по `id`
-- Слоистая архитектура: `Controller -> Service -> Repository`
-- DTO + Mapper для API-ответов
-- Централизованная обработка ошибок (`ApiErrorResponse`)
-- Seed-данные в H2 для быстрого запуска и демонстрации
+Дополнительно: во всех связях используется `FetchType.LAZY`.
 
-## Стек технологий
+## Модель и связи
 
-- Java 17
-- Spring Boot 3
-- Spring Data JPA
-- Maven
-- H2 (in-memory)
-- JUnit 5 + MockMvc (интеграционные тесты)
+- `Pitch 1 -> N Booking`
+- `Pitch 1 -> N EquipmentOffer`
+- `User 1 -> N Booking` (организатор)
+- `Booking 1 -> 0..1 OpenGame`
+- `User 1 -> N OpenGame` (организатор)
+- `User N <-> N OpenGame` (participants через `open_game_participants`)
 
-## Структура проекта
+## FetchType и CascadeType (обоснование)
 
-```text
-src/main/java/pitchmarketplace
-├── controller/      # REST API
-├── service/         # бизнес-логика
-├── repository/      # доступ к данным
-├── domain/entity/   # JPA-сущности
-├── domain/enums/    # перечисления
-├── dto/             # запросы/ответы API
-├── mapper/          # преобразование entity -> DTO
-└── exception/       # обработка ошибок
+- `FetchType.LAZY` задан явно во всех ассоциациях, чтобы не загружать связные графы заранее и контролировать SQL.
+- Каскад применен только для жизненно зависимой связи:
+  - `Pitch -> EquipmentOffer`: `PERSIST`, `MERGE`, `REMOVE`, `orphanRemoval=true`.
+- Для `ManyToMany` (`OpenGame.participants`) каскад удаления не используется, чтобы удаление игры не удаляло пользователей.
+- Для `Booking`/`OpenGame`/`User` каскады не включены, так как это отдельные агрегаты.
 
-src/main/resources
-├── application.properties
-└── data.sql
+## N+1 демонстрация
 
-src/test/java/pitchmarketplace
-└── PitchControllerIntegrationTest.java
+- Плохой сценарий: `GET /api/v1/demos/n-plus-one/bad`
+  - Загружает `OpenGame` списком и затем обращается к `participants` в цикле.
+- Исправленный сценарий: `GET /api/v1/demos/n-plus-one/solved`
+  - Использует `@EntityGraph(attributePaths = "participants")`.
+
+Оба endpoint возвращают `executedStatements` (через `Hibernate Statistics`) для сравнения количества SQL.
+
+## Транзакции: partial save vs rollback
+
+- Без транзакции: `POST /api/v1/demos/transactions/without-transaction`
+  - Сохраняет несколько связанных сущностей, затем выбрасывает исключение.
+  - Уже сохраненные записи остаются в БД (partial save).
+- С транзакцией: `POST /api/v1/demos/transactions/with-transaction`
+  - Та же логика, но метод помечен `@Transactional`.
+  - При исключении операция откатывается полностью.
+
+Endpoint возвращает `before`/`after` со счетчиками сущностей.
+
+## CRUD API
+
+### Pitches
+- `GET /api/v1/pitches?district=...`
+- `GET /api/v1/pitches/{id}`
+- `POST /api/v1/pitches`
+- `PUT /api/v1/pitches/{id}`
+- `DELETE /api/v1/pitches/{id}`
+
+### Users
+- `GET /api/v1/users`
+- `GET /api/v1/users/{id}`
+- `POST /api/v1/users`
+- `PUT /api/v1/users/{id}`
+- `DELETE /api/v1/users/{id}`
+
+### Bookings
+- `GET /api/v1/bookings`
+- `GET /api/v1/bookings/{id}`
+- `POST /api/v1/bookings`
+- `PUT /api/v1/bookings/{id}`
+- `DELETE /api/v1/bookings/{id}`
+
+### Open games
+- `GET /api/v1/open-games`
+- `GET /api/v1/open-games/{id}`
+- `POST /api/v1/open-games`
+- `PUT /api/v1/open-games/{id}`
+- `DELETE /api/v1/open-games/{id}`
+
+### Equipment offers
+- `GET /api/v1/equipment-offers`
+- `GET /api/v1/equipment-offers/{id}`
+- `POST /api/v1/equipment-offers`
+- `PUT /api/v1/equipment-offers/{id}`
+- `DELETE /api/v1/equipment-offers/{id}`
+
+## Запуск
+
+Перед запуском приложения создай БД в PostgreSQL:
+
+```sql
+CREATE DATABASE pitchmarket;
+CREATE DATABASE pitchmarket_test;
 ```
 
-## Запуск проекта
+По умолчанию используются:
+- `DB_URL=jdbc:postgresql://localhost:5432/pitchmarket`
+- `DB_USERNAME=postgres`
+- `DB_PASSWORD=postgres`
+
+Если у тебя другие параметры, задай их через переменные окружения.
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Приложение стартует на `http://localhost:8080`.
+Приложение запускается на `http://localhost:8080`.
 
-## API
+Для демонстрации преподавателю можно открыть `pgAdmin` и показать таблицы:
+- `users`
+- `pitches`
+- `bookings`
+- `open_games`
+- `equipment_offers`
+- `open_game_participants`
 
-### 1) Поиск полей
-
-`GET /api/v1/pitches/search`
-
-Поддерживаемые параметры:
-- `pitchType` = `FIVE_TURF | FIVE_FUTSAL | EIGHT | ELEVEN`
-- `priceFrom`, `priceTo`
-- `durationMinutes` (60..180, шаг 30)
-- `skillMin`, `skillMax` (1..100)
-- `district`, `metro`
-- `lat`, `lng`, `radiusKm`
-- `desiredStartAt`, `desiredEndAt` (строгая доступность на весь интервал)
-- `sort` = `price_asc | price_desc | avg_skill_asc | avg_skill_desc | distance_to_me_asc | distance_to_me_desc`
-- `needInventory` (`false` по умолчанию)
-- `ballQty`, `bibsQty`
-- заголовок `X-User-Id` (обязателен только для `distance_to_me_*`)
-
-Пример запроса:
-
-```bash
-curl "http://localhost:8080/api/v1/pitches/search?desiredStartAt=2026-03-01T19:00:00&desiredEndAt=2026-03-01T21:00:00&sort=price_asc"
-```
-
-### 2) Получение поля по id
-
-`GET /api/v1/pitches/{id}`
-
-Пример:
-
-```bash
-curl "http://localhost:8080/api/v1/pitches/1"
-```
-
-## Примеры демонстрации для отчета
-
-- Запуск приложения (`Started PitchMarketplaceApplication`)
-- Успешный поиск с фильтрами
-- Сортировка по цене
-- Поиск по временному интервалу
-- Поиск с `needInventory=true`
-- Получение поля по `id`
-- Ошибка `400 Bad Request` без `X-User-Id` при `distance_to_me_asc`
-
-## Тестирование
-
-Запуск тестов:
+## Тесты
 
 ```bash
 ./mvnw test
 ```
 
-Проверка Checkstyle:
+В тестах используется отдельный PostgreSQL-конфиг (`src/test/resources/application.properties`) и отдельная БД `pitchmarket_test`.
+Если логин/пароль отличаются от дефолтных, запускай так:
 
 ```bash
-./mvnw -DskipTests checkstyle:check
+TEST_DB_URL=jdbc:postgresql://localhost:5432/pitchmarket_test \
+TEST_DB_USERNAME=postgres \
+TEST_DB_PASSWORD=<your_password> \
+./mvnw test
 ```
 
-В проекте есть интеграционные тесты `PitchControllerIntegrationTest`, которые проверяют:
-- фильтрацию,
-- сортировки,
-- временную доступность,
-- опциональный инвентарь,
-- обработку ошибок,
-- получение поля по `id`.
-
-## Автор
-
-Студенческий проект для лабораторной работы.
+Интеграционный тест `JpaRequirementsIntegrationTest` проверяет:
+- CRUD,
+- N+1 bad/solved,
+- частичное сохранение без транзакции,
+- rollback с транзакцией.
 
 ## SonarCloud
 
