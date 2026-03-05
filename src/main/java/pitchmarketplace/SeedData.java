@@ -43,11 +43,9 @@ public class SeedData implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (hasEnoughData()) {
+        if (!isDatabaseEmpty()) {
             return;
         }
-
-        clearDataIfExists();
 
         User alexey = userRepository.save(new User(null, "Алексей", 68, UserRole.PLAYER));
         User maxim = userRepository.save(new User(null, "Максим", 70, UserRole.PLAYER));
@@ -237,24 +235,11 @@ public class SeedData implements CommandLineRunner {
         ));
     }
 
-    private boolean hasEnoughData() {
-        return userRepository.count() >= 10
-                && pitchRepository.count() >= 6
-                && bookingRepository.count() >= 6
-                && openGameRepository.count() >= 6;
-    }
-
-    private void clearDataIfExists() {
-        if (userRepository.count() == 0
+    private boolean isDatabaseEmpty() {
+        return userRepository.count() == 0
                 && pitchRepository.count() == 0
                 && bookingRepository.count() == 0
-                && openGameRepository.count() == 0) {
-            return;
-        }
-        openGameRepository.deleteAll();
-        bookingRepository.deleteAll();
-        pitchRepository.deleteAll();
-        userRepository.deleteAll();
+                && openGameRepository.count() == 0;
     }
 
     private Pitch createPitch(
