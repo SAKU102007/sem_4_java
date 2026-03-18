@@ -14,9 +14,11 @@ import pitchmarketplace.repository.PitchRepository;
 public class PitchService {
 
     private final PitchRepository repository;
+    private final BookingSearchService bookingSearchService;
 
-    public PitchService(PitchRepository repository) {
+    public PitchService(PitchRepository repository, BookingSearchService bookingSearchService) {
         this.repository = repository;
+        this.bookingSearchService = bookingSearchService;
     }
 
     @Transactional(readOnly = true)
@@ -39,18 +41,24 @@ public class PitchService {
     public PitchDto create(PitchUpsertRequest request) {
         Pitch pitch = new Pitch();
         applyRequest(pitch, request);
-        return toDto(repository.save(pitch));
+        Pitch savedPitch = repository.save(pitch);
+        bookingSearchService.invalidateCache();
+        return toDto(savedPitch);
     }
 
     public PitchDto update(Long id, PitchUpsertRequest request) {
         Pitch pitch = getOrThrow(id);
         applyRequest(pitch, request);
-        return toDto(repository.save(pitch));
+        Pitch savedPitch = repository.save(pitch);
+        bookingSearchService.invalidateCache();
+        return toDto(savedPitch);
     }
 
     public void delete(Long id) {
         Pitch pitch = getOrThrow(id);
         repository.delete(pitch);
+        repository.flush();
+        bookingSearchService.invalidateCache();
     }
 
     private Pitch getOrThrow(Long id) {

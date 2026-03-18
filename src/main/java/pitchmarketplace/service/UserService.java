@@ -14,9 +14,11 @@ import pitchmarketplace.repository.UserRepository;
 public class UserService {
 
     private final UserRepository repository;
+    private final BookingSearchService bookingSearchService;
 
-    public UserService(UserRepository repository) {
+    public UserService(UserRepository repository, BookingSearchService bookingSearchService) {
         this.repository = repository;
+        this.bookingSearchService = bookingSearchService;
     }
 
     @Transactional(readOnly = true)
@@ -34,18 +36,24 @@ public class UserService {
     public UserDto create(UserUpsertRequest request) {
         User user = new User();
         applyRequest(user, request);
-        return toDto(repository.save(user));
+        User savedUser = repository.save(user);
+        bookingSearchService.invalidateCache();
+        return toDto(savedUser);
     }
 
     public UserDto update(Long id, UserUpsertRequest request) {
         User user = getOrThrow(id);
         applyRequest(user, request);
-        return toDto(repository.save(user));
+        User savedUser = repository.save(user);
+        bookingSearchService.invalidateCache();
+        return toDto(savedUser);
     }
 
     public void delete(Long id) {
         User user = getOrThrow(id);
         repository.delete(user);
+        repository.flush();
+        bookingSearchService.invalidateCache();
     }
 
     private User getOrThrow(Long id) {

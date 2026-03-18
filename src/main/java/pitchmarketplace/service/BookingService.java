@@ -20,15 +20,18 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final PitchRepository pitchRepository;
     private final UserRepository userRepository;
+    private final BookingSearchService bookingSearchService;
 
     public BookingService(
             BookingRepository bookingRepository,
             PitchRepository pitchRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            BookingSearchService bookingSearchService
     ) {
         this.bookingRepository = bookingRepository;
         this.pitchRepository = pitchRepository;
         this.userRepository = userRepository;
+        this.bookingSearchService = bookingSearchService;
     }
 
     @Transactional(readOnly = true)
@@ -46,18 +49,24 @@ public class BookingService {
     public BookingDto create(BookingUpsertRequest request) {
         Booking booking = new Booking();
         applyRequest(booking, request);
-        return toDto(bookingRepository.save(booking));
+        Booking savedBooking = bookingRepository.save(booking);
+        bookingSearchService.invalidateCache();
+        return toDto(savedBooking);
     }
 
     public BookingDto update(Long id, BookingUpsertRequest request) {
         Booking booking = getBookingOrThrow(id);
         applyRequest(booking, request);
-        return toDto(bookingRepository.save(booking));
+        Booking savedBooking = bookingRepository.save(booking);
+        bookingSearchService.invalidateCache();
+        return toDto(savedBooking);
     }
 
     public void delete(Long id) {
         Booking booking = getBookingOrThrow(id);
         bookingRepository.delete(booking);
+        bookingRepository.flush();
+        bookingSearchService.invalidateCache();
     }
 
     private void applyRequest(Booking booking, BookingUpsertRequest request) {

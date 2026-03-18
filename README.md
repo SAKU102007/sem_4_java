@@ -61,6 +61,37 @@
 
 Endpoint возвращает `before`/`after` со счетчиками сущностей.
 
+## Data caching: JPQL, native query, Pageable, HashMap index
+
+- Реализован сложный поиск `Booking` по вложенным сущностям `Pitch` и `User`.
+- Фильтры:
+  - `district` (`Pitch.district`)
+  - `pitchType` (`Pitch.type`)
+  - `organizerName` (`User.name`)
+  - `status` (`Booking.status`)
+  - `startFrom` / `startTo` (`Booking.startAt`)
+- Реализованы два endpoint'а:
+  - `GET /api/v1/bookings/search/jpql`
+  - `GET /api/v1/bookings/search/native`
+- Оба endpoint'а поддерживают пагинацию через `page` и `size`.
+- Для повторных запросов добавлен in-memory индекс на `HashMap<BookingSearchCacheKey, BookingSearchResponseDto>`.
+- Ключ индекса составной и включает тип запроса (`jpql`/`native`), все фильтры и параметры пагинации.
+- Для ключа вручную реализованы `equals()` и `hashCode()`.
+- В ответе поиска есть поле `cacheHit`, чтобы на защите было видно, когда данные пришли из кэша.
+- Инвалидация кэша выполняется при `create/update/delete` в:
+  - `BookingService`
+  - `PitchService`
+  - `UserService`
+
+Пример запроса:
+
+```http
+GET /api/v1/bookings/search/jpql?district=Центральный&pitchType=FIVE_FUTSAL&organizerName=Алексей&status=CONFIRMED&startFrom=2026-03-10T00:00:00&startTo=2026-03-11T00:00:00&page=0&size=5
+```
+
+Первый вызов вернет `cacheHit=false`, повторный с теми же параметрами — `cacheHit=true`.
+После изменения `Booking`, `Pitch` или `User` кэш очищается, и следующий запрос снова вернет `cacheHit=false`.
+
 ## CRUD API
 
 ### Pitches
@@ -79,6 +110,8 @@ Endpoint возвращает `before`/`after` со счетчиками сущ�
 
 ### Bookings
 - `GET /api/v1/bookings`
+- `GET /api/v1/bookings/search/jpql?...&page=0&size=5`
+- `GET /api/v1/bookings/search/native?...&page=0&size=5`
 - `GET /api/v1/bookings/{id}`
 - `POST /api/v1/bookings`
 - `PUT /api/v1/bookings/{id}`
@@ -148,7 +181,11 @@ TEST_DB_PASSWORD=<your_password> \
 - CRUD,
 - N+1 bad/solved,
 - частичное сохранение без транзакции,
-- rollback с транзакцией.
+- rollback с транзакцией,
+- поиск `Booking` через JPQL и native query,
+- пагинацию,
+- cache hit,
+- инвалидацию кэша после изменения данных.
 
 ## SonarCloud
 

@@ -1,0 +1,179 @@
+package pitchmarketplace.service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import pitchmarketplace.domain.entity.Booking;
+import pitchmarketplace.domain.enums.BookingStatus;
+import pitchmarketplace.domain.enums.PitchType;
+import pitchmarketplace.dto.BookingDto;
+import pitchmarketplace.dto.BookingSearchResponseDto;
+import pitchmarketplace.repository.BookingRepository;
+import pitchmarketplace.service.cache.BookingSearchCacheKey;
+
+@Service
+public class BookingSearchService {
+
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 5;
+    private static final int MAX_PAGE_SIZE = 50;
+
+    private final BookingRepository bookingRepository;
+    private final Map<BookingSearchCacheKey, BookingSearchResponseDto> searchCache = new HashMap<>();
+
+    public BookingSearchService(BookingRepository bookingRepository) {
+        this.bookingRepository = bookingRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public BookingSearchResponseDto searchWithJpql(
+            String district,
+            PitchType pitchType,
+            String organizerName,
+            BookingStatus status,
+            LocalDateTime startFrom,
+            LocalDateTime startTo,
+            Integer page,
+            Integer size
+    ) {
+        PageRequest pageRequest = createPageRequest(page, size);
+        String normalizedDistrict = normalizeText(district);
+        String normalizedOrganizerName = normalizeText(organizerName);
+        BookingSearchCacheKey cacheKey = new BookingSearchCacheKey(
+                "jpql",
+                normalizedDistrict,
+                pitchType,
+                normalizedOrganizerName,
+                status,
+                startFrom,
+                startTo,
+                pageRequest.getPageNumber(),
+                pageRequest.getPageSize()
+        );
+        return search(
+                cacheKey,
+                "jpql",
+                () -> bookingRepository.searchWithFiltersJpql(
+                        normalizedDistrict,
+                        pitchType,
+                        normalizedOrganizerName,
+                        status,
+                        startFrom,
+                        startTo,
+                        pageRequest
+                )
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public BookingSearchResponseDto searchWithNative(
+            String district,
+            PitchType pitchType,
+            String organizerName,
+            BookingStatus status,
+            LocalDateTime startFrom,
+            LocalDateTime startTo,
+            Integer page,
+            Integer size
+    ) {
+        PageRequest pageRequest = createPageRequest(page, size);
+        String normalizedDistrict = normalizeText(district);
+        String normalizedOrganizerName = normalizeText(organizerName);
+        BookingSearchCacheKey cacheKey = new BookingSearchCacheKey(
+                "native",
+                normalizedDistrict,
+                pitchType,
+                normalizedOrganizerName,
+                status,
+                startFrom,
+                startTo,
+                pageRequest.getPageNumber(),
+                pageRequest.getPageSize()
+        );
+        return search(
+                cacheKey,
+                "native",
+                () -> bookingRepository.searchWithFiltersNative(
+                        normalizedDistrict,
+                        pitchType == null ? null : pitchType.name(),
+                        normalizedOrganizerName,
+                        status == null ? null : status.name(),
+                        startFrom,
+                        startTo,
+                        pageRequest
+                )
+        );
+    }
+
+    public void invalidateCache() {
+        synchronized (searchCache) {
+            searchCache.clear();
+        }
+    }
+
+    private BookingSearchResponseDto search(
+            BookingSearchCacheKey cacheKey,
+            String queryType,
+            Supplier<Page<Booking>> querySupplier
+    ) {
+        synchronized (searchCache) {
+            BookingSearchResponseDto cachedResponse = searchCache.get(cacheKey);
+            if (cachedResponse != null) {
+                return cachedResponse.markCacheHit();
+            }
+        }
+
+        BookingSearchResponseDto freshResponse = toDto(queryType, querySupplier.get());
+        synchronized (searchCache) {
+            searchCache.put(cacheKey, freshResponse);
+        }
+        return freshResponse;
+    }
+
+    private PageRequest createPageRequest(Integer page, Integer size) {
+        int normalizedPage = page == null ? DEFAULT_PAGE : Math.max(page, DEFAULT_PAGE);
+        int normalizedSize = size == null ? DEFAULT_SIZE : Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+        return PageRequest.of(normalizedPage, normalizedSize);
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private BookingSearchResponseDto toDto(String queryType, Page<Booking> page) {
+        List<BookingDto> content = page.getContent().stream()
+                .map(this::toDto)
+                .toList();
+        return new BookingSearchResponseDto(
+                queryType,
+                false,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast(),
+                content
+        );
+    }
+
+    private BookingDto toDto(Booking booking) {
+        return new BookingDto(
+                booking.getId(),
+                booking.getPitch().getId(),
+                booking.getOrganizer().getId(),
+                booking.getStartAt(),
+                booking.getEndAt(),
+                booking.getStatus()
+        );
+    }
+}

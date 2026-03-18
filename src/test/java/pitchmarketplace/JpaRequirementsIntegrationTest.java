@@ -154,4 +154,197 @@ class JpaRequirementsIntegrationTest {
         assertThat(afterOpenGames).isEqualTo(beforeOpenGames);
         assertThat(afterOffers).isEqualTo(beforeOffers);
     }
+
+    @Test
+    void shouldSearchBookingsViaJpqlAndNativeWithPaging() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        String district = "CacheDistrict" + suffix;
+        String organizerName = "Cache Search User " + suffix;
+
+        Long organizerId = createUser(organizerName, 78);
+        Long pitchId = createPitch("Cache Search Pitch " + suffix, "EIGHT", district);
+
+        createBooking(
+                pitchId,
+                organizerId,
+                "2026-04-10T18:00:00",
+                "2026-04-10T20:00:00",
+                "CONFIRMED"
+        );
+        createBooking(
+                pitchId,
+                organizerId,
+                "2026-04-11T18:00:00",
+                "2026-04-11T20:00:00",
+                "CONFIRMED"
+        );
+
+        mockMvc.perform(get("/api/v1/bookings/search/jpql")
+                        .param("district", district)
+                        .param("pitchType", "EIGHT")
+                        .param("organizerName", organizerName)
+                        .param("status", "CONFIRMED")
+                        .param("startFrom", "2026-04-10T00:00:00")
+                        .param("startTo", "2026-04-12T00:00:00")
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.queryType").value("jpql"))
+                .andExpect(jsonPath("$.cacheHit").value(false))
+                .andExpect(jsonPath("$.pageNumber").value(0))
+                .andExpect(jsonPath("$.pageSize").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        mockMvc.perform(get("/api/v1/bookings/search/native")
+                        .param("district", district)
+                        .param("pitchType", "EIGHT")
+                        .param("organizerName", organizerName)
+                        .param("status", "CONFIRMED")
+                        .param("startFrom", "2026-04-10T00:00:00")
+                        .param("startTo", "2026-04-12T00:00:00")
+                        .param("page", "1")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.queryType").value("native"))
+                .andExpect(jsonPath("$.cacheHit").value(false))
+                .andExpect(jsonPath("$.pageNumber").value(1))
+                .andExpect(jsonPath("$.pageSize").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
+    void shouldReuseCacheAndInvalidateAfterPitchUpdate() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        String district = "CacheInvalidateDistrict" + suffix;
+        String updatedDistrict = "ChangedDistrict" + suffix;
+        String organizerName = "Cache Invalidate User " + suffix;
+        String pitchName = "Cache Invalidate Pitch " + suffix;
+
+        Long organizerId = createUser(organizerName, 74);
+        Long pitchId = createPitch(pitchName, "FIVE_TURF", district);
+        createBooking(
+                pitchId,
+                organizerId,
+                "2026-05-10T18:00:00",
+                "2026-05-10T20:00:00",
+                "CREATED"
+        );
+
+        mockMvc.perform(get("/api/v1/bookings/search/jpql")
+                        .param("district", district)
+                        .param("organizerName", organizerName)
+                        .param("status", "CREATED")
+                        .param("page", "0")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cacheHit").value(false))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        mockMvc.perform(get("/api/v1/bookings/search/jpql")
+                        .param("district", district)
+                        .param("organizerName", organizerName)
+                        .param("status", "CREATED")
+                        .param("page", "0")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cacheHit").value(true))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        String pitchUpdateRequest = """
+                {
+                  "name": "%s",
+                  "type": "FIVE_TURF",
+                  "district": "%s",
+                  "metro": "CacheMetro",
+                  "pricePerHour": 120.00
+                }
+                """.formatted(pitchName, updatedDistrict);
+
+        mockMvc.perform(put("/api/v1/pitches/{id}", pitchId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pitchUpdateRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.district").value(updatedDistrict));
+
+        mockMvc.perform(get("/api/v1/bookings/search/jpql")
+                        .param("district", district)
+                        .param("organizerName", organizerName)
+                        .param("status", "CREATED")
+                        .param("page", "0")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cacheHit").value(false))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    private Long createUser(String name, int rating) throws Exception {
+        String request = """
+                {
+                  "name": "%s",
+                  "rating": %d,
+                  "role": "PLAYER"
+                }
+                """.formatted(name, rating);
+
+        MvcResult result = mockMvc.perform(post("/api/v1/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return Long.valueOf(JsonPath.read(result.getResponse().getContentAsString(), "$.id").toString());
+    }
+
+    private Long createPitch(String name, String type, String district) throws Exception {
+        String request = """
+                {
+                  "name": "%s",
+                  "type": "%s",
+                  "district": "%s",
+                  "metro": "CacheMetro",
+                  "pricePerHour": 120.00
+                }
+                """.formatted(name, type, district);
+
+        MvcResult result = mockMvc.perform(post("/api/v1/pitches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return Long.valueOf(JsonPath.read(result.getResponse().getContentAsString(), "$.id").toString());
+    }
+
+    private Long createBooking(
+            Long pitchId,
+            Long organizerId,
+            String startAt,
+            String endAt,
+            String status
+    ) throws Exception {
+        String request = """
+                {
+                  "pitchId": %d,
+                  "organizerId": %d,
+                  "startAt": "%s",
+                  "endAt": "%s",
+                  "status": "%s"
+                }
+                """.formatted(pitchId, organizerId, startAt, endAt, status);
+
+        MvcResult result = mockMvc.perform(post("/api/v1/bookings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return Long.valueOf(JsonPath.read(result.getResponse().getContentAsString(), "$.id").toString());
+    }
 }
