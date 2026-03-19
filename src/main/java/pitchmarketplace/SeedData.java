@@ -64,10 +64,8 @@ public class SeedData implements CommandLineRunner {
                 "Центральный",
                 "Немига",
                 "120.00",
-                10,
-                "15.00",
-                20,
-                "8.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 10, "15.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 20, "8.00")
         ));
         Pitch pitchTwo = pitchRepository.save(createPitch(
                 "Олимпик Парк",
@@ -75,10 +73,8 @@ public class SeedData implements CommandLineRunner {
                 "Советский",
                 "Московская",
                 "150.00",
-                6,
-                "12.00",
-                14,
-                "7.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 6, "12.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 14, "7.00")
         ));
         Pitch pitchThree = pitchRepository.save(createPitch(
                 "Трактор Филд",
@@ -86,10 +82,8 @@ public class SeedData implements CommandLineRunner {
                 "Партизанский",
                 "Тракторный завод",
                 "200.00",
-                12,
-                "17.00",
-                24,
-                "11.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 12, "17.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 24, "11.00")
         ));
         Pitch pitchFour = pitchRepository.save(createPitch(
                 "Футзал Хаб",
@@ -97,10 +91,8 @@ public class SeedData implements CommandLineRunner {
                 "Центральный",
                 "Фрунзенская",
                 "110.00",
-                8,
-                "13.00",
-                16,
-                "8.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 8, "13.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 16, "8.00")
         ));
         Pitch pitchFive = pitchRepository.save(createPitch(
                 "Парк Футбол",
@@ -108,10 +100,8 @@ public class SeedData implements CommandLineRunner {
                 "Ленинский",
                 "Пролетарская",
                 "95.00",
-                7,
-                "10.00",
-                12,
-                "6.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 7, "10.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 12, "6.00")
         ));
         Pitch pitchSix = pitchRepository.save(createPitch(
                 "Лошицкий Центр",
@@ -119,10 +109,8 @@ public class SeedData implements CommandLineRunner {
                 "Октябрьский",
                 "Институт культуры",
                 "145.00",
-                9,
-                "14.00",
-                18,
-                "9.00"
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 9, "14.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 18, "9.00")
         ));
 
         LocalDateTime baseStart = LocalDateTime.of(2026, 3, 10, 18, 0);
@@ -248,27 +236,23 @@ public class SeedData implements CommandLineRunner {
             String district,
             String metro,
             String pricePerHour,
-            int ballStock,
-            String ballRentPrice,
-            int bibsStock,
-            String bibsRentPrice
+            EquipmentSeedSpec firstOffer,
+            EquipmentSeedSpec secondOffer
     ) {
         Pitch pitch = new Pitch(null, name, type, district, metro, new BigDecimal(pricePerHour));
-        pitch.addEquipmentOffer(new EquipmentOffer(
-                null,
-                null,
-                EquipmentItemType.BALL,
-                ballStock,
-                new BigDecimal(ballRentPrice)
-        ));
-        pitch.addEquipmentOffer(new EquipmentOffer(
-                null,
-                null,
-                EquipmentItemType.BIBS,
-                bibsStock,
-                new BigDecimal(bibsRentPrice)
-        ));
+        pitch.addEquipmentOffer(createEquipmentOffer(firstOffer));
+        pitch.addEquipmentOffer(createEquipmentOffer(secondOffer));
         return pitch;
+    }
+
+    private EquipmentOffer createEquipmentOffer(EquipmentSeedSpec spec) {
+        return new EquipmentOffer(
+                null,
+                null,
+                spec.itemType(),
+                spec.stockTotal(),
+                new BigDecimal(spec.rentPrice())
+        );
     }
 
     private Booking createBooking(Pitch pitch, User organizer, LocalDateTime startAt, BookingStatus status) {
@@ -304,5 +288,12 @@ public class SeedData implements CommandLineRunner {
             openGame.addParticipant(participant);
         }
         return openGame;
+    }
+
+    private record EquipmentSeedSpec(
+            EquipmentItemType itemType,
+            int stockTotal,
+            String rentPrice
+    ) {
     }
 }

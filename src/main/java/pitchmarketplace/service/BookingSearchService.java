@@ -1,6 +1,5 @@
 package pitchmarketplace.service;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,9 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pitchmarketplace.domain.entity.Booking;
-import pitchmarketplace.domain.enums.BookingStatus;
-import pitchmarketplace.domain.enums.PitchType;
 import pitchmarketplace.dto.BookingDto;
+import pitchmarketplace.dto.BookingSearchCriteria;
 import pitchmarketplace.dto.BookingSearchResponseDto;
 import pitchmarketplace.repository.BookingRepository;
 import pitchmarketplace.service.cache.BookingSearchCacheKey;
@@ -33,26 +31,14 @@ public class BookingSearchService {
 
     @Transactional(readOnly = true)
     public BookingSearchResponseDto searchWithJpql(
-            String district,
-            PitchType pitchType,
-            String organizerName,
-            BookingStatus status,
-            LocalDateTime startFrom,
-            LocalDateTime startTo,
+            BookingSearchCriteria criteria,
             Integer page,
             Integer size
     ) {
         PageRequest pageRequest = createPageRequest(page, size);
-        String normalizedDistrict = normalizeText(district);
-        String normalizedOrganizerName = normalizeText(organizerName);
         BookingSearchCacheKey cacheKey = new BookingSearchCacheKey(
                 "jpql",
-                normalizedDistrict,
-                pitchType,
-                normalizedOrganizerName,
-                status,
-                startFrom,
-                startTo,
+                criteria,
                 pageRequest.getPageNumber(),
                 pageRequest.getPageSize()
         );
@@ -60,12 +46,12 @@ public class BookingSearchService {
                 cacheKey,
                 "jpql",
                 () -> bookingRepository.searchWithFiltersJpql(
-                        normalizedDistrict,
-                        pitchType,
-                        normalizedOrganizerName,
-                        status,
-                        startFrom,
-                        startTo,
+                        criteria.district(),
+                        criteria.pitchType(),
+                        criteria.organizerName(),
+                        criteria.status(),
+                        criteria.startFrom(),
+                        criteria.startTo(),
                         pageRequest
                 )
         );
@@ -73,26 +59,14 @@ public class BookingSearchService {
 
     @Transactional(readOnly = true)
     public BookingSearchResponseDto searchWithNative(
-            String district,
-            PitchType pitchType,
-            String organizerName,
-            BookingStatus status,
-            LocalDateTime startFrom,
-            LocalDateTime startTo,
+            BookingSearchCriteria criteria,
             Integer page,
             Integer size
     ) {
         PageRequest pageRequest = createPageRequest(page, size);
-        String normalizedDistrict = normalizeText(district);
-        String normalizedOrganizerName = normalizeText(organizerName);
         BookingSearchCacheKey cacheKey = new BookingSearchCacheKey(
                 "native",
-                normalizedDistrict,
-                pitchType,
-                normalizedOrganizerName,
-                status,
-                startFrom,
-                startTo,
+                criteria,
                 pageRequest.getPageNumber(),
                 pageRequest.getPageSize()
         );
@@ -100,12 +74,12 @@ public class BookingSearchService {
                 cacheKey,
                 "native",
                 () -> bookingRepository.searchWithFiltersNative(
-                        normalizedDistrict,
-                        pitchType == null ? null : pitchType.name(),
-                        normalizedOrganizerName,
-                        status == null ? null : status.name(),
-                        startFrom,
-                        startTo,
+                        criteria.district(),
+                        criteria.pitchType() == null ? null : criteria.pitchType().name(),
+                        criteria.organizerName(),
+                        criteria.status() == null ? null : criteria.status().name(),
+                        criteria.startFrom(),
+                        criteria.startTo(),
                         pageRequest
                 )
         );
@@ -140,13 +114,6 @@ public class BookingSearchService {
         int normalizedPage = page == null ? DEFAULT_PAGE : Math.max(page, DEFAULT_PAGE);
         int normalizedSize = size == null ? DEFAULT_SIZE : Math.max(1, Math.min(size, MAX_PAGE_SIZE));
         return PageRequest.of(normalizedPage, normalizedSize);
-    }
-
-    private String normalizeText(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
     }
 
     private BookingSearchResponseDto toDto(String queryType, Page<Booking> page) {

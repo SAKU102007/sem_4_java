@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pitchmarketplace.domain.enums.BookingStatus;
 import pitchmarketplace.domain.enums.PitchType;
 import pitchmarketplace.dto.BookingDto;
+import pitchmarketplace.dto.BookingSearchCriteria;
 import pitchmarketplace.dto.BookingSearchResponseDto;
 import pitchmarketplace.dto.BookingUpsertRequest;
 import pitchmarketplace.service.BookingSearchService;
@@ -53,12 +54,7 @@ public class BookingController {
             @RequestParam(defaultValue = "5") Integer size
     ) {
         return ResponseEntity.ok(bookingSearchService.searchWithJpql(
-                district,
-                pitchType,
-                organizerName,
-                status,
-                startFrom,
-                startTo,
+                new BookingSearchCriteria(district, pitchType, organizerName, status, startFrom, startTo),
                 page,
                 size
         ));
@@ -78,12 +74,7 @@ public class BookingController {
             @RequestParam(defaultValue = "5") Integer size
     ) {
         return ResponseEntity.ok(bookingSearchService.searchWithNative(
-                district,
-                pitchType,
-                organizerName,
-                status,
-                startFrom,
-                startTo,
+                new BookingSearchCriteria(district, pitchType, organizerName, status, startFrom, startTo),
                 page,
                 size
         ));
