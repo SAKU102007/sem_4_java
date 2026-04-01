@@ -1,5 +1,7 @@
 package pitchmarketplace.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,7 @@ import pitchmarketplace.service.TransactionDemoService;
 
 @RestController
 @RequestMapping("/api/v1/demos")
+@Tag(name = "Demos", description = "Educational endpoints for JPA and transaction behaviour")
 public class DemoController {
 
     private final NPlusOneDemoService nPlusOneDemoService;
@@ -24,16 +27,22 @@ public class DemoController {
     }
 
     @GetMapping("/n-plus-one/bad")
+    @Operation(summary = "Show N+1 problem", description = "Demonstrates the inefficient N+1 loading scenario.")
     public ResponseEntity<NPlusOneDemoResultDto> demonstrateNPlusOneBadCase() {
         return ResponseEntity.ok(nPlusOneDemoService.demonstrateBadCase());
     }
 
     @GetMapping("/n-plus-one/solved")
+    @Operation(summary = "Show solved N+1 problem", description = "Demonstrates the optimized query strategy.")
     public ResponseEntity<NPlusOneDemoResultDto> demonstrateNPlusOneSolvedCase() {
         return ResponseEntity.ok(nPlusOneDemoService.demonstrateSolvedCase());
     }
 
     @PostMapping("/transactions/without-transaction")
+    @Operation(
+            summary = "Demonstrate missing transaction",
+            description = "Shows what remains persisted when related changes fail without a transaction."
+    )
     public ResponseEntity<TransactionDemoResultDto> demonstrateWithoutTransaction() {
         EntityCountSnapshotDto before = transactionDemoService.snapshot();
         String error;
@@ -48,6 +57,10 @@ public class DemoController {
     }
 
     @PostMapping("/transactions/with-transaction")
+    @Operation(
+            summary = "Demonstrate transactional rollback",
+            description = "Shows how transactional rollback prevents partial persistence on failure."
+    )
     public ResponseEntity<TransactionDemoResultDto> demonstrateWithTransaction() {
         EntityCountSnapshotDto before = transactionDemoService.snapshot();
         String error;

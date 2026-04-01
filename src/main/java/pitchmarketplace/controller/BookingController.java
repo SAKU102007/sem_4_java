@@ -1,23 +1,24 @@
 package pitchmarketplace.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pitchmarketplace.domain.enums.BookingStatus;
-import pitchmarketplace.domain.enums.PitchType;
 import pitchmarketplace.dto.BookingDto;
-import pitchmarketplace.dto.BookingSearchCriteria;
+import pitchmarketplace.dto.BookingSearchRequest;
 import pitchmarketplace.dto.BookingSearchResponseDto;
 import pitchmarketplace.dto.BookingUpsertRequest;
 import pitchmarketplace.service.BookingSearchService;
@@ -25,6 +26,7 @@ import pitchmarketplace.service.BookingService;
 
 @RestController
 @RequestMapping("/api/v1/bookings")
+@Tag(name = "Bookings", description = "Operations for bookings and booking search")
 public class BookingController {
 
     private final BookingService service;
@@ -36,68 +38,66 @@ public class BookingController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all bookings", description = "Returns every booking available in the system.")
     public ResponseEntity<List<BookingDto>> getAll() {
         return ResponseEntity.ok(service.findAll());
     }
 
     @GetMapping("/search/jpql")
+    @Operation(
+            summary = "Search bookings with JPQL",
+            description = "Searches bookings using JPQL filters and paginated results."
+    )
     public ResponseEntity<BookingSearchResponseDto> searchWithJpql(
-            @RequestParam(required = false) String district,
-            @RequestParam(required = false) PitchType pitchType,
-            @RequestParam(required = false) String organizerName,
-            @RequestParam(required = false) BookingStatus status,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startFrom,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTo,
-            @RequestParam(defaultValue = "0") Integer page,
-            @RequestParam(defaultValue = "5") Integer size
+            @ParameterObject @Valid @ModelAttribute BookingSearchRequest request
     ) {
         return ResponseEntity.ok(bookingSearchService.searchWithJpql(
-                new BookingSearchCriteria(district, pitchType, organizerName, status, startFrom, startTo),
-                page,
-                size
+                request.toCriteria(),
+                request.getPage(),
+                request.getSize()
         ));
     }
 
     @GetMapping("/search/native")
+    @Operation(
+            summary = "Search bookings with native SQL",
+            description = "Searches bookings using native SQL filters and paginated results."
+    )
     public ResponseEntity<BookingSearchResponseDto> searchWithNative(
-            @RequestParam(required = false) String district,
-            @RequestParam(required = false) PitchType pitchType,
-            @RequestParam(required = false) String organizerName,
-            @RequestParam(required = false) BookingStatus status,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startFrom,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTo,
-            @RequestParam(defaultValue = "0") Integer page,
-            @RequestParam(defaultValue = "5") Integer size
+            @ParameterObject @Valid @ModelAttribute BookingSearchRequest request
     ) {
         return ResponseEntity.ok(bookingSearchService.searchWithNative(
-                new BookingSearchCriteria(district, pitchType, organizerName, status, startFrom, startTo),
-                page,
-                size
+                request.toCriteria(),
+                request.getPage(),
+                request.getSize()
         ));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BookingDto> getById(@PathVariable Long id) {
+    @Operation(summary = "Get booking by id", description = "Returns a booking by its identifier.")
+    public ResponseEntity<BookingDto> getById(@PathVariable @Positive(message = "id must be positive") Long id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<BookingDto> create(@RequestBody BookingUpsertRequest request) {
+    @Operation(summary = "Create booking", description = "Creates a booking from the provided request body.")
+    public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingUpsertRequest request) {
         BookingDto created = service.create(request);
         return ResponseEntity.created(URI.create("/api/v1/bookings/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BookingDto> update(@PathVariable Long id, @RequestBody BookingUpsertRequest request) {
+    @Operation(summary = "Update booking", description = "Updates an existing booking by identifier.")
+    public ResponseEntity<BookingDto> update(
+            @PathVariable @Positive(message = "id must be positive") Long id,
+            @Valid @RequestBody BookingUpsertRequest request
+    ) {
         return ResponseEntity.ok(service.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @Operation(summary = "Delete booking", description = "Deletes a booking by identifier.")
+    public ResponseEntity<Void> delete(@PathVariable @Positive(message = "id must be positive") Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
