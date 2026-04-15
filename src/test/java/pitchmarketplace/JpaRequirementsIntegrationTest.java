@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -218,6 +219,90 @@ class JpaRequirementsIntegrationTest {
     }
 
     @Test
+    void shouldCreateBookingsInBulk() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        Long organizerId = createUser("Bulk User " + suffix, 80);
+        Long pitchId = createPitch("Bulk Pitch " + suffix, "EIGHT", "Bulk District " + suffix);
+
+        String bulkRequest = """
+                [
+                  {
+                    "pitchId": %d,
+                    "organizerId": %d,
+                    "startAt": "2026-06-01T18:00:00",
+                    "endAt": "2026-06-01T20:00:00",
+                    "status": "CREATED"
+                  },
+                  {
+                    "pitchId": %d,
+                    "organizerId": %d,
+                    "startAt": "2026-06-02T18:00:00",
+                    "endAt": "2026-06-02T20:00:00",
+                    "status": "CONFIRMED"
+                  }
+                ]
+                """.formatted(pitchId, organizerId, pitchId, organizerId);
+
+        mockMvc.perform(post("/api/v1/bookings/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bulkRequest))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].pitchId").value(pitchId))
+                .andExpect(jsonPath("$[1].organizerId").value(organizerId));
+    }
+
+    @Test
+    void shouldShowBulkTransactionDifference() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        Long organizerId = createUser("Bulk Tx User " + suffix, 81);
+        Long pitchId = createPitch("Bulk Tx Pitch " + suffix, "FIVE_TURF", "Bulk Tx District " + suffix);
+
+        String bulkDemoRequest = """
+                [
+                  {
+                    "pitchId": %d,
+                    "organizerId": %d,
+                    "startAt": "2026-06-10T18:00:00",
+                    "endAt": "2026-06-10T20:00:00",
+                    "status": "CREATED"
+                  },
+                  {
+                    "pitchId": %d,
+                    "organizerId": 999999,
+                    "startAt": "2026-06-11T18:00:00",
+                    "endAt": "2026-06-11T20:00:00",
+                    "status": "CONFIRMED"
+                  }
+                ]
+                """.formatted(pitchId, organizerId, pitchId);
+
+        MvcResult withoutTransaction = mockMvc.perform(post("/api/v1/demos/transactions/bulk-bookings/without-transaction")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bulkDemoRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("bulk_without_transaction"))
+                .andReturn();
+
+        String withoutTransactionJson = withoutTransaction.getResponse().getContentAsString();
+        long beforeWithout = Long.parseLong(JsonPath.read(withoutTransactionJson, "$.before.bookings").toString());
+        long afterWithout = Long.parseLong(JsonPath.read(withoutTransactionJson, "$.after.bookings").toString());
+        assertThat(afterWithout).isEqualTo(beforeWithout + 1);
+
+        MvcResult withTransaction = mockMvc.perform(post("/api/v1/demos/transactions/bulk-bookings/with-transaction")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bulkDemoRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("bulk_with_transaction"))
+                .andReturn();
+
+        String withTransactionJson = withTransaction.getResponse().getContentAsString();
+        long beforeWith = Long.parseLong(JsonPath.read(withTransactionJson, "$.before.bookings").toString());
+        long afterWith = Long.parseLong(JsonPath.read(withTransactionJson, "$.after.bookings").toString());
+        assertThat(afterWith).isEqualTo(beforeWith);
+    }
+
+    @Test
     void shouldReturnUnifiedValidationErrorForInvalidPitchRequest() throws Exception {
         String invalidRequest = """
                 {
@@ -248,9 +333,13 @@ class JpaRequirementsIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/bookings/search/jpql']").exists());
 
         mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/swagger-ui/index.html"));
+
+        mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("SwaggerUIBundle")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/v3/api-docs")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("swagger-ui-bundle.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("swagger-initializer.js")));
     }
 
     @Test

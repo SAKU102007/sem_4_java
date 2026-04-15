@@ -2,6 +2,7 @@ package pitchmarketplace.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pitchmarketplace.domain.entity.Booking;
@@ -12,6 +13,8 @@ import pitchmarketplace.domain.enums.BookingStatus;
 import pitchmarketplace.domain.enums.EquipmentItemType;
 import pitchmarketplace.domain.enums.PitchType;
 import pitchmarketplace.domain.enums.UserRole;
+import pitchmarketplace.dto.BookingDto;
+import pitchmarketplace.dto.BookingUpsertRequest;
 import pitchmarketplace.dto.EntityCountSnapshotDto;
 import pitchmarketplace.repository.BookingRepository;
 import pitchmarketplace.repository.EquipmentOfferRepository;
@@ -27,19 +30,22 @@ public class TransactionDemoService {
     private final BookingRepository bookingRepository;
     private final OpenGameRepository openGameRepository;
     private final EquipmentOfferRepository equipmentOfferRepository;
+    private final BookingService bookingService;
 
     public TransactionDemoService(
             UserRepository userRepository,
             PitchRepository pitchRepository,
             BookingRepository bookingRepository,
             OpenGameRepository openGameRepository,
-            EquipmentOfferRepository equipmentOfferRepository
+            EquipmentOfferRepository equipmentOfferRepository,
+            BookingService bookingService
     ) {
         this.userRepository = userRepository;
         this.pitchRepository = pitchRepository;
         this.bookingRepository = bookingRepository;
         this.openGameRepository = openGameRepository;
         this.equipmentOfferRepository = equipmentOfferRepository;
+        this.bookingService = bookingService;
     }
 
     public EntityCountSnapshotDto snapshot() {
@@ -59,6 +65,14 @@ public class TransactionDemoService {
     @Transactional
     public void saveRelatedEntitiesWithTransactionAndFail() {
         saveRelatedEntitiesAndFail();
+    }
+
+    public List<BookingDto> createBookingsBulkWithoutTransaction(List<BookingUpsertRequest> requests) {
+        return bookingService.createBulkWithoutTransaction(requests);
+    }
+
+    public List<BookingDto> createBookingsBulkWithTransaction(List<BookingUpsertRequest> requests) {
+        return bookingService.createBulk(requests);
     }
 
     private void saveRelatedEntitiesAndFail() {

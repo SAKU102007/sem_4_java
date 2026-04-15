@@ -1,0 +1,160 @@
+КРАТКАЯ ДЕМОНСТРАЦИЯ РАБОТЫ ЛАБОРАТОРНОЙ 5
+
+1. Что реализовано
+
+В проекте добавлена bulk-операция для бронирований, показана разница между выполнением bulk-операции с транзакцией и без нее, использованы Stream API и Optional в сервисном слое, а также написаны unit- и интеграционные тесты для ключевых сценариев лабораторной.
+
+
+2. Bulk-операция
+
+Где показывать в коде:
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/controller/BookingController.java:90
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:76
+
+Что говорить:
+- bulk-операция принимает список объектов одним POST-запросом
+- в проекте это массовое создание бронирований
+- endpoint: POST http://localhost:8080/api/v1/bookings/bulk
+
+Пример bulk-запроса:
+[
+  {
+    "pitchId": 1,
+    "organizerId": 1,
+    "startAt": "2026-05-01T18:00:00",
+    "endAt": "2026-05-01T20:00:00",
+    "status": "CREATED"
+  },
+  {
+    "pitchId": 1,
+    "organizerId": 1,
+    "startAt": "2026-05-02T18:00:00",
+    "endAt": "2026-05-02T20:00:00",
+    "status": "CONFIRMED"
+  }
+]
+
+Что ожидается:
+- статус 201 Created
+- в ответе возвращается список созданных BookingDto
+
+
+3. Bulk с транзакцией и без транзакции
+
+Где показывать в коде:
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:76
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:85
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/controller/DemoController.java:82
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/controller/DemoController.java:108
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/dto/BulkBookingTransactionDemoResultDto.java:6
+
+Что говорить:
+- метод createBulk(...) помечен @Transactional, поэтому при ошибке откатывается вся bulk-операция
+- метод createBulkWithoutTransaction(...) не помечен @Transactional, поэтому часть данных может сохраниться
+- для защиты это удобно показывать через demo-endpoint
+
+Endpoint без транзакции:
+POST http://localhost:8080/api/v1/demos/transactions/bulk-bookings/without-transaction
+
+Endpoint с транзакцией:
+POST http://localhost:8080/api/v1/demos/transactions/bulk-bookings/with-transaction
+
+Запрос для демонстрации разницы:
+[
+  {
+    "pitchId": 1,
+    "organizerId": 1,
+    "startAt": "2026-05-10T18:00:00",
+    "endAt": "2026-05-10T20:00:00",
+    "status": "CREATED"
+  },
+  {
+    "pitchId": 1,
+    "organizerId": 999999,
+    "startAt": "2026-05-11T18:00:00",
+    "endAt": "2026-05-11T20:00:00",
+    "status": "CONFIRMED"
+  }
+]
+
+Как объяснять результат:
+- без транзакции первый элемент сохранится, второй упадет с ошибкой, поэтому after.bookings будет больше before.bookings на 1
+- с транзакцией при ошибке откатится вся операция, поэтому after.bookings будет равно before.bookings
+
+
+4. Где используется Stream API
+
+Где показывать в коде:
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:40
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:78
+
+Что говорить:
+- Stream API используется для обработки коллекций в декларативном стиле
+- в findAll() поток превращает список Booking в список BookingDto
+- в createBulk() поток превращает список BookingUpsertRequest в список созданных BookingDto
+
+Для чего нужен map в Stream API:
+- map преобразует каждый элемент потока в новый элемент
+- у меня это, например, преобразование Booking в BookingDto или BookingUpsertRequest в результат сохранения
+
+
+5. Где используется Optional
+
+Где показывать в коде:
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:99
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:113
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:124
+
+Что говорить:
+- Optional нужен для безопасной работы с возможным отсутствием значения вместо прямой работы с null
+- в normalizeBulkRequests(...) Optional используется для проверки, что список не null и не пустой
+- в findById(...).orElseThrow(...) Optional помогает явно обработать ситуацию, когда сущность не найдена
+
+Для чего нужен Optional:
+- делает отсутствие значения явным
+- уменьшает риск NullPointerException
+- заставляет программиста явно решить, что делать, если объекта нет
+
+
+6. Тесты
+
+Где показывать unit-тесты:
+- /Users/saku10/Desktop/Java/src/test/java/pitchmarketplace/service/BookingServiceTest.java:59
+- /Users/saku10/Desktop/Java/src/test/java/pitchmarketplace/service/TransactionDemoServiceTest.java:60
+
+Где показывать интеграционные тесты:
+- /Users/saku10/Desktop/Java/src/test/java/pitchmarketplace/JpaRequirementsIntegrationTest.java:222
+- /Users/saku10/Desktop/Java/src/test/java/pitchmarketplace/JpaRequirementsIntegrationTest.java:256
+
+Что говорить:
+- unit-тесты проверяют сервисную логику изолированно через Mockito
+- интеграционные тесты проверяют endpoint и поведение приложения целиком через MockMvc
+- для bulk-операции и демонстрации транзакций есть и unit-, и интеграционные проверки
+
+Важно формулировать аккуратно:
+- корректнее говорить не "в проекте доказано 100% покрытие", а "ключевые требования лабораторной покрыты unit- и интеграционными тестами"
+- если нужен численный процент покрытия, для этого обычно дополнительно подключают JaCoCo
+
+
+7. Дополнительные ключевые моменты
+
+Что еще удобно показать:
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/controller/BookingController.java:96
+  Здесь видно List<@Valid BookingUpsertRequest>, то есть валидируется каждый элемент bulk-списка.
+
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/dto/BulkBookingTransactionDemoResultDto.java:6
+  Этот DTO удобно показывает режим demo, число отправленных элементов, текст ошибки и состояние БД до и после операции.
+
+- /Users/saku10/Desktop/Java/src/main/java/pitchmarketplace/service/BookingService.java:81
+  После успешной bulk-операции инвалидируется кеш поиска бронирований.
+
+
+8. Короткий сценарий защиты
+
+1. Открыть BookingController.java и показать endpoint POST /api/v1/bookings/bulk.
+2. Открыть BookingService.java и показать createBulk(...) и createBulkWithoutTransaction(...).
+3. Отправить обычный bulk-запрос и показать, что создается сразу несколько бронирований.
+4. Отправить demo-запрос без транзакции и показать, что after.bookings увеличился на 1.
+5. Отправить demo-запрос с транзакцией и показать, что after.bookings не изменился.
+6. Открыть BookingService.java и показать Stream API, Optional и map.
+7. Открыть unit- и интеграционные тесты и сказать, что ключевые сценарии лабораторной покрыты тестами.

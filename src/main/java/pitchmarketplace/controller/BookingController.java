@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -84,6 +85,17 @@ public class BookingController {
     public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingUpsertRequest request) {
         BookingDto created = service.create(request);
         return ResponseEntity.created(URI.create("/api/v1/bookings/" + created.id())).body(created);
+    }
+
+    @PostMapping("/bulk")
+    @Operation(
+            summary = "Create bookings in bulk",
+            description = "Creates multiple bookings in one request and saves them atomically."
+    )
+    public ResponseEntity<List<BookingDto>> createBulk(
+            @Valid @RequestBody List<@Valid BookingUpsertRequest> requests
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.createBulk(requests));
     }
 
     @PutMapping("/{id}")
