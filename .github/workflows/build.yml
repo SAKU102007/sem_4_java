@@ -11,6 +11,20 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pitchmarket_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pitchmarket_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,5 +43,17 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build and test
-        run: ./mvnw -B verify
+      - name: Build, test and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          TEST_DB_URL: jdbc:postgresql://localhost:5432/pitchmarket_test
+          TEST_DB_USERNAME: postgres
+          TEST_DB_PASSWORD: postgres
+        run: |
+          if [ -n "${SONAR_TOKEN}" ]; then
+            ./mvnw -B verify sonar:sonar -Dsonar.token="${SONAR_TOKEN}"
+          else
+            echo "SONAR_TOKEN is not set, skipping SonarCloud analysis."
+            ./mvnw -B verify
+          fi
