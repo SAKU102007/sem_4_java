@@ -1,6 +1,9 @@
 package pitchmarketplace.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -9,6 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pitchmarketplace.domain.entity.Booking;
+import pitchmarketplace.domain.entity.Pitch;
+import pitchmarketplace.domain.entity.User;
 import pitchmarketplace.dto.BookingDto;
 import pitchmarketplace.dto.BookingUpsertRequest;
 import pitchmarketplace.dto.EntityCountSnapshotDto;
@@ -72,6 +78,32 @@ class TransactionDemoServiceTest {
         assertThat(snapshot.bookings()).isEqualTo(9L);
         assertThat(snapshot.openGames()).isEqualTo(3L);
         assertThat(snapshot.equipmentOffers()).isEqualTo(7L);
+    }
+
+    @Test
+    void shouldSaveRelatedEntitiesWithoutTransactionAndFail() {
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pitchRepository.save(any(Pitch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> transactionDemoService.saveRelatedEntitiesWithoutTransactionAndFail())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Synthetic failure after partial save of related entities");
+
+        verify(userRepository).save(any(User.class));
+        verify(pitchRepository).save(any(Pitch.class));
+        verify(bookingRepository).save(any(Booking.class));
+    }
+
+    @Test
+    void shouldSaveRelatedEntitiesWithTransactionAndFail() {
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pitchRepository.save(any(Pitch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> transactionDemoService.saveRelatedEntitiesWithTransactionAndFail())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Synthetic failure after partial save of related entities");
     }
 
     @Test

@@ -59,12 +59,14 @@ public class TransactionDemoService {
     }
 
     public void saveRelatedEntitiesWithoutTransactionAndFail() {
-        saveRelatedEntitiesAndFail();
+        saveRelatedEntities();
+        throw syntheticFailure();
     }
 
     @Transactional
     public void saveRelatedEntitiesWithTransactionAndFail() {
-        saveRelatedEntitiesAndFail();
+        saveRelatedEntities();
+        throw syntheticFailure();
     }
 
     public List<BookingDto> createBookingsBulkWithoutTransaction(List<BookingUpsertRequest> requests) {
@@ -75,7 +77,7 @@ public class TransactionDemoService {
         return bookingService.createBulk(requests);
     }
 
-    private void saveRelatedEntitiesAndFail() {
+    private void saveRelatedEntities() {
         String suffix = String.valueOf(System.nanoTime());
 
         User organizer = userRepository.save(new User(null, "Tx Organizer " + suffix, 60, UserRole.PLAYER));
@@ -100,7 +102,9 @@ public class TransactionDemoService {
                 LocalDateTime.now().plusDays(1).withHour(21).withMinute(0).withSecond(0).withNano(0),
                 BookingStatus.CREATED
         ));
+    }
 
-        throw new IllegalStateException("Synthetic failure after partial save of related entities");
+    private IllegalStateException syntheticFailure() {
+        return new IllegalStateException("Synthetic failure after partial save of related entities");
     }
 }
