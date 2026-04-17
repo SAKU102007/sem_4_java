@@ -17,3 +17,6 @@ logs/
 
 # Env
 .env
+
+# Load testing artifacts
+/jmeter/results/

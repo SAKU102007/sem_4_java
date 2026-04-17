@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -303,6 +304,85 @@ class JpaRequirementsIntegrationTest {
     }
 
     @Test
+    void shouldStartAsyncPitchLoadReportAndEventuallyComplete() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        Long organizerId = createUser("Async User " + suffix, 82);
+        Long pitchId = createPitch("Async Pitch " + suffix, "EIGHT", "Async District " + suffix);
+
+        createBooking(
+                pitchId,
+                organizerId,
+                "2026-06-15T18:00:00",
+                "2026-06-15T20:00:00",
+                "CONFIRMED"
+        );
+        createBooking(
+                pitchId,
+                organizerId,
+                "2026-06-16T18:00:00",
+                "2026-06-16T20:00:00",
+                "CANCELLED"
+        );
+
+        String request = """
+                {
+                  "pitchId": %d
+                }
+                """.formatted(pitchId);
+
+        MvcResult accepted = mockMvc.perform(post("/api/v1/concurrency/pitch-load-reports")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isAccepted())
+                .andReturn();
+
+        long taskId = Long.parseLong(JsonPath.read(accepted.getResponse().getContentAsString(), "$.taskId").toString());
+        assertThat(accepted.getResponse().getHeader("Location"))
+                .isEqualTo("/api/v1/concurrency/pitch-load-reports/" + taskId);
+        String statusJson = awaitAsyncTaskCompletion(taskId);
+
+        assertThat(JsonPath.read(statusJson, "$.status").toString()).isEqualTo("COMPLETED");
+        assertThat(Long.parseLong(JsonPath.read(statusJson, "$.result.pitchId").toString())).isEqualTo(pitchId);
+        assertThat(Long.parseLong(JsonPath.read(statusJson, "$.result.totalBookings").toString())).isEqualTo(2L);
+        assertThat(Long.parseLong(JsonPath.read(statusJson, "$.result.confirmedBookings").toString())).isEqualTo(1L);
+        assertThat(Long.parseLong(JsonPath.read(statusJson, "$.result.cancelledBookings").toString())).isEqualTo(1L);
+
+        mockMvc.perform(get("/api/v1/concurrency/pitch-load-reports/counters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.submittedTasks").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.completedTasks").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void shouldDemonstrateRaceCondition() throws Exception {
+        String request = """
+                {
+                  "threads": 64,
+                  "incrementsPerThread": 2000
+                }
+                """;
+
+        MvcResult result = mockMvc.perform(post("/api/v1/concurrency/race-condition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.threads").value(64))
+                .andExpect(jsonPath("$.incrementsPerThread").value(2000))
+                .andExpect(jsonPath("$.expected").value(128000))
+                .andReturn();
+
+        String json = result.getResponse().getContentAsString();
+        long expected = Long.parseLong(JsonPath.read(json, "$.expected").toString());
+        long unsafeCounter = Long.parseLong(JsonPath.read(json, "$.unsafeCounter").toString());
+        long synchronizedCounter = Long.parseLong(JsonPath.read(json, "$.synchronizedCounter").toString());
+        long atomicCounter = Long.parseLong(JsonPath.read(json, "$.atomicCounter").toString());
+
+        assertThat(unsafeCounter).isLessThan(expected);
+        assertThat(synchronizedCounter).isEqualTo(expected);
+        assertThat(atomicCounter).isEqualTo(expected);
+    }
+
+    @Test
     void shouldReturnUnifiedValidationErrorForInvalidPitchRequest() throws Exception {
         String invalidRequest = """
                 {
@@ -472,5 +552,21 @@ class JpaRequirementsIntegrationTest {
                 .andReturn();
 
         return Long.valueOf(JsonPath.read(result.getResponse().getContentAsString(), "$.id").toString());
+    }
+
+    private String awaitAsyncTaskCompletion(long taskId) throws Exception {
+        for (int attempt = 0; attempt < 50; attempt++) {
+            MvcResult result = mockMvc.perform(get("/api/v1/concurrency/pitch-load-reports/{taskId}", taskId))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String json = result.getResponse().getContentAsString();
+            String status = JsonPath.read(json, "$.status").toString();
+            if ("COMPLETED".equals(status) || "FAILED".equals(status)) {
+                return json;
+            }
+            Thread.sleep(100L);
+        }
+        throw new IllegalStateException("Async task did not finish in time");
     }
 }

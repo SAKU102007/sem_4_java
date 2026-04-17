@@ -19,20 +19,28 @@ import pitchmarketplace.domain.enums.OpenGameStatus;
 import pitchmarketplace.domain.enums.PitchType;
 import pitchmarketplace.domain.enums.UserRole;
 import pitchmarketplace.dto.ApiErrorResponse;
+import pitchmarketplace.dto.AsyncTaskAcceptedDto;
+import pitchmarketplace.dto.AsyncTaskState;
+import pitchmarketplace.dto.AsyncTaskStatusDto;
 import pitchmarketplace.dto.BookingDto;
 import pitchmarketplace.dto.BookingSearchCriteria;
 import pitchmarketplace.dto.BookingSearchRequest;
 import pitchmarketplace.dto.BookingSearchResponseDto;
 import pitchmarketplace.dto.BookingUpsertRequest;
 import pitchmarketplace.dto.BulkBookingTransactionDemoResultDto;
+import pitchmarketplace.dto.ConcurrencyCounterStatsDto;
 import pitchmarketplace.dto.EntityCountSnapshotDto;
 import pitchmarketplace.dto.EquipmentOfferDto;
 import pitchmarketplace.dto.EquipmentOfferUpsertRequest;
 import pitchmarketplace.dto.NPlusOneDemoResultDto;
 import pitchmarketplace.dto.OpenGameDto;
 import pitchmarketplace.dto.OpenGameUpsertRequest;
+import pitchmarketplace.dto.PitchLoadReportRequest;
+import pitchmarketplace.dto.PitchLoadReportResultDto;
 import pitchmarketplace.dto.PitchDto;
 import pitchmarketplace.dto.PitchUpsertRequest;
+import pitchmarketplace.dto.RaceConditionDemoRequest;
+import pitchmarketplace.dto.RaceConditionDemoResultDto;
 import pitchmarketplace.dto.TransactionDemoResultDto;
 import pitchmarketplace.dto.UserDto;
 import pitchmarketplace.dto.UserUpsertRequest;
@@ -193,6 +201,18 @@ class ModelCoverageTest {
                 snapshot,
                 snapshot
         );
+        AsyncTaskAcceptedDto acceptedTask = new AsyncTaskAcceptedDto(7L, AsyncTaskState.ACCEPTED, now);
+        PitchLoadReportResultDto pitchLoadReport = new PitchLoadReportResultDto(2L, "Arena", 8, 5, 1, 3, 2);
+        AsyncTaskStatusDto asyncTaskStatus = new AsyncTaskStatusDto(
+                7L,
+                AsyncTaskState.COMPLETED,
+                now,
+                now,
+                now,
+                null,
+                pitchLoadReport
+        );
+        ConcurrencyCounterStatsDto counterStats = new ConcurrencyCounterStatsDto(7L, 7L, 6L, 1L);
         EquipmentOfferDto equipmentOfferDto = new EquipmentOfferDto(
                 4L,
                 2L,
@@ -209,12 +229,23 @@ class ModelCoverageTest {
         NPlusOneDemoResultDto nPlusOne = new NPlusOneDemoResultDto("bad", 3, 4, 5);
         OpenGameDto openGameDto = new OpenGameDto(5L, 1L, 3L, 40, 70, 12, OpenGameStatus.OPEN, List.of(3L, 4L));
         PitchDto pitchDto = new PitchDto(2L, "Arena", PitchType.EIGHT, "Central", "Nemiga", new BigDecimal("120.00"));
+        PitchLoadReportRequest pitchLoadReportRequest = new PitchLoadReportRequest(2L);
         PitchUpsertRequest pitchUpsertRequest = new PitchUpsertRequest(
                 "Arena",
                 PitchType.EIGHT,
                 "Central",
                 "Nemiga",
                 new BigDecimal("120.00")
+        );
+        RaceConditionDemoRequest raceConditionDemoRequest = new RaceConditionDemoRequest(64, 2000);
+        RaceConditionDemoResultDto raceConditionDemoResult = new RaceConditionDemoResultDto(
+                64,
+                2000,
+                128000L,
+                100000L,
+                128000L,
+                128000L,
+                28000L
         );
         TransactionDemoResultDto transaction = new TransactionDemoResultDto("with_transaction", "error", snapshot, snapshot);
         UserDto userDto = new UserDto(3L, "Alexey", 78, UserRole.PLAYER);
@@ -247,6 +278,16 @@ class ModelCoverageTest {
         assertThat(bulk.error()).isEqualTo("error");
         assertThat(bulk.before()).isEqualTo(snapshot);
         assertThat(bulk.after()).isEqualTo(snapshot);
+        assertThat(acceptedTask.taskId()).isEqualTo(7L);
+        assertThat(acceptedTask.status()).isEqualTo(AsyncTaskState.ACCEPTED);
+        assertThat(acceptedTask.createdAt()).isEqualTo(now);
+        assertThat(asyncTaskStatus.taskId()).isEqualTo(7L);
+        assertThat(asyncTaskStatus.status()).isEqualTo(AsyncTaskState.COMPLETED);
+        assertThat(asyncTaskStatus.result()).isEqualTo(pitchLoadReport);
+        assertThat(counterStats.lastIssuedTaskId()).isEqualTo(7L);
+        assertThat(counterStats.submittedTasks()).isEqualTo(7L);
+        assertThat(counterStats.completedTasks()).isEqualTo(6L);
+        assertThat(counterStats.failedTasks()).isEqualTo(1L);
         assertThat(snapshot.users()).isEqualTo(1);
         assertThat(snapshot.pitches()).isEqualTo(2);
         assertThat(snapshot.bookings()).isEqualTo(3);
@@ -279,11 +320,25 @@ class ModelCoverageTest {
         assertThat(pitchDto.district()).isEqualTo("Central");
         assertThat(pitchDto.metro()).isEqualTo("Nemiga");
         assertThat(pitchDto.pricePerHour()).isEqualTo(new BigDecimal("120.00"));
+        assertThat(pitchLoadReportRequest.pitchId()).isEqualTo(2L);
+        assertThat(pitchLoadReport.pitchName()).isEqualTo("Arena");
+        assertThat(pitchLoadReport.totalBookings()).isEqualTo(8L);
+        assertThat(pitchLoadReport.confirmedBookings()).isEqualTo(5L);
+        assertThat(pitchLoadReport.cancelledBookings()).isEqualTo(1L);
+        assertThat(pitchLoadReport.totalOpenGames()).isEqualTo(3L);
+        assertThat(pitchLoadReport.openOpenGames()).isEqualTo(2L);
         assertThat(pitchUpsertRequest.name()).isEqualTo("Arena");
         assertThat(pitchUpsertRequest.type()).isEqualTo(PitchType.EIGHT);
         assertThat(pitchUpsertRequest.district()).isEqualTo("Central");
         assertThat(pitchUpsertRequest.metro()).isEqualTo("Nemiga");
         assertThat(pitchUpsertRequest.pricePerHour()).isEqualTo(new BigDecimal("120.00"));
+        assertThat(raceConditionDemoRequest.threads()).isEqualTo(64);
+        assertThat(raceConditionDemoRequest.incrementsPerThread()).isEqualTo(2000);
+        assertThat(raceConditionDemoResult.expected()).isEqualTo(128000L);
+        assertThat(raceConditionDemoResult.unsafeCounter()).isEqualTo(100000L);
+        assertThat(raceConditionDemoResult.atomicCounter()).isEqualTo(128000L);
+        assertThat(raceConditionDemoResult.synchronizedCounter()).isEqualTo(128000L);
+        assertThat(raceConditionDemoResult.unsafeLostUpdates()).isEqualTo(28000L);
         assertThat(transaction.mode()).isEqualTo("with_transaction");
         assertThat(transaction.error()).isEqualTo("error");
         assertThat(transaction.before()).isEqualTo(snapshot);
@@ -302,6 +357,7 @@ class ModelCoverageTest {
         assertThat(OpenGameStatus.valueOf("OPEN")).isEqualTo(OpenGameStatus.OPEN);
         assertThat(PitchType.valueOf("EIGHT")).isEqualTo(PitchType.EIGHT);
         assertThat(UserRole.valueOf("ADMIN")).isEqualTo(UserRole.ADMIN);
+        assertThat(AsyncTaskState.valueOf("COMPLETED")).isEqualTo(AsyncTaskState.COMPLETED);
         assertThat(BookingStatus.values()).containsExactly(
                 BookingStatus.CREATED,
                 BookingStatus.CONFIRMED,

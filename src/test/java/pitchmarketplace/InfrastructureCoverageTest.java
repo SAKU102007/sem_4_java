@@ -6,13 +6,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.TimeZone;
+import java.util.concurrent.Executor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.boot.SpringApplication;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import pitchmarketplace.aspect.ServiceExecutionLoggingAspect;
+import pitchmarketplace.config.AsyncConfig;
 
 class InfrastructureCoverageTest {
 
@@ -63,5 +66,17 @@ class InfrastructureCoverageTest {
         } finally {
             TimeZone.setDefault(original);
         }
+    }
+
+    @Test
+    void shouldCreateAsyncExecutorBean() {
+        AsyncConfig asyncConfig = new AsyncConfig();
+
+        Executor executor = asyncConfig.concurrencyTaskExecutor();
+
+        assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
+        ThreadPoolTaskExecutor threadPoolTaskExecutor = (ThreadPoolTaskExecutor) executor;
+        assertThat(threadPoolTaskExecutor.getThreadNamePrefix()).isEqualTo("pitch-report-");
+        threadPoolTaskExecutor.shutdown();
     }
 }

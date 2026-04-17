@@ -12,6 +12,10 @@ import pitchmarketplace.domain.enums.PitchType;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
+    long countByPitch_Id(Long pitchId);
+
+    long countByPitch_IdAndStatus(Long pitchId, BookingStatus status);
+
     @Query(
             value = """
                     select b
