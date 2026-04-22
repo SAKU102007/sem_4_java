@@ -27,8 +27,7 @@ class RaceConditionDemoServiceTest {
         var result = service.demonstrate(new RaceConditionDemoRequest(64, 2000));
 
         assertThat(result.expected()).isEqualTo(128000L);
-        assertThat(result.atomicCounter()).isEqualTo(128000L);
-        assertThat(result.synchronizedCounter()).isEqualTo(128000L);
+        assertThat(result.safeCounter()).isEqualTo(128000L);
         assertThat(result.unsafeCounter()).isLessThan(result.expected());
         assertThat(result.unsafeLostUpdates()).isPositive();
     }

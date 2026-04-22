@@ -244,7 +244,6 @@ class ModelCoverageTest {
                 128000L,
                 100000L,
                 128000L,
-                128000L,
                 28000L
         );
         TransactionDemoResultDto transaction = new TransactionDemoResultDto("with_transaction", "error", snapshot, snapshot);
@@ -336,8 +335,7 @@ class ModelCoverageTest {
         assertThat(raceConditionDemoRequest.incrementsPerThread()).isEqualTo(2000);
         assertThat(raceConditionDemoResult.expected()).isEqualTo(128000L);
         assertThat(raceConditionDemoResult.unsafeCounter()).isEqualTo(100000L);
-        assertThat(raceConditionDemoResult.atomicCounter()).isEqualTo(128000L);
-        assertThat(raceConditionDemoResult.synchronizedCounter()).isEqualTo(128000L);
+        assertThat(raceConditionDemoResult.safeCounter()).isEqualTo(128000L);
         assertThat(raceConditionDemoResult.unsafeLostUpdates()).isEqualTo(28000L);
         assertThat(transaction.mode()).isEqualTo("with_transaction");
         assertThat(transaction.error()).isEqualTo("error");

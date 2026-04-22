@@ -75,8 +75,7 @@ class ConcurrencyDemoServiceTest {
         var result = service.demonstrateRaceCondition(new RaceConditionDemoRequest(50, 500));
 
         assertThat(result.expected()).isEqualTo(25000L);
-        assertThat(result.atomicCounter()).isEqualTo(25000L);
-        assertThat(result.synchronizedCounter()).isEqualTo(25000L);
+        assertThat(result.safeCounter()).isEqualTo(25000L);
         assertThat(result.unsafeLostUpdates()).isPositive();
     }
 

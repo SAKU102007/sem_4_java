@@ -12,10 +12,8 @@ public record RaceConditionDemoResultDto(
         long expected,
         @Schema(description = "Result of the unsafe counter", example = "104532")
         long unsafeCounter,
-        @Schema(description = "Result of the synchronized counter", example = "128000")
-        long synchronizedCounter,
-        @Schema(description = "Result of the atomic counter", example = "128000")
-        long atomicCounter,
+        @Schema(description = "Result of the safe counter", example = "128000")
+        long safeCounter,
         @Schema(description = "How many increments were lost by the unsafe counter", example = "23468")
         long unsafeLostUpdates
 ) {

@@ -70,7 +70,7 @@ public class ConcurrencyController {
             summary = "Demonstrate race condition and safe counters",
             description = """
                     Runs 50+ concurrent threads to show lost updates for an unsafe counter
-                    and the correct result for synchronized and Atomic counters.
+                    and the correct result for the selected safe counter implementation.
                     """
     )
     public ResponseEntity<RaceConditionDemoResultDto> demonstrateRaceCondition(

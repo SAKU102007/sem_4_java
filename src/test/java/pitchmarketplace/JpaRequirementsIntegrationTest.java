@@ -374,12 +374,10 @@ class JpaRequirementsIntegrationTest {
         String json = result.getResponse().getContentAsString();
         long expected = Long.parseLong(JsonPath.read(json, "$.expected").toString());
         long unsafeCounter = Long.parseLong(JsonPath.read(json, "$.unsafeCounter").toString());
-        long synchronizedCounter = Long.parseLong(JsonPath.read(json, "$.synchronizedCounter").toString());
-        long atomicCounter = Long.parseLong(JsonPath.read(json, "$.atomicCounter").toString());
+        long safeCounter = Long.parseLong(JsonPath.read(json, "$.safeCounter").toString());
 
         assertThat(unsafeCounter).isLessThan(expected);
-        assertThat(synchronizedCounter).isEqualTo(expected);
-        assertThat(atomicCounter).isEqualTo(expected);
+        assertThat(safeCounter).isEqualTo(expected);
     }
 
     @Test

@@ -16,8 +16,8 @@ public class RaceConditionDemoService {
 
     public RaceConditionDemoResultDto demonstrate(RaceConditionDemoRequest request) {
         UnsafeCounter unsafeCounter = new UnsafeCounter();
-        AtomicLong atomicCounter = new AtomicLong();
-        SynchronizedCounter synchronizedCounter = new SynchronizedCounter();
+        SafeCounter safeCounter = new AtomicSafeCounter();
+        // SafeCounter safeCounter = new SynchronizedCounter();
 
         int threads = request.threads();
         int incrementsPerThread = request.incrementsPerThread();
@@ -32,8 +32,7 @@ public class RaceConditionDemoService {
                     startLatch.await();
                     for (int i = 0; i < incrementsPerThread; i++) {
                         unsafeCounter.increment();
-                        atomicCounter.incrementAndGet();
-                        synchronizedCounter.increment();
+                        safeCounter.increment();
                     }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
@@ -66,10 +65,46 @@ public class RaceConditionDemoService {
                 incrementsPerThread,
                 expected,
                 unsafeValue,
-                synchronizedCounter.get(),
-                atomicCounter.get(),
+                safeCounter.get(),
                 expected - unsafeValue
         );
+    }
+
+    private interface SafeCounter {
+
+        void increment();
+
+        long get();
+    }
+
+    private static final class AtomicSafeCounter implements SafeCounter {
+
+        private final AtomicLong value = new AtomicLong();
+
+        @Override
+        public void increment() {
+            value.incrementAndGet();
+        }
+
+        @Override
+        public long get() {
+            return value.get();
+        }
+    }
+
+    private static final class SynchronizedCounter implements SafeCounter {
+
+        private long value;
+
+        @Override
+        public synchronized void increment() {
+            value++;
+        }
+
+        @Override
+        public synchronized long get() {
+            return value;
+        }
     }
 
     private static final class UnsafeCounter {
@@ -77,11 +112,7 @@ public class RaceConditionDemoService {
         private long value;
 
         private void increment() {
-            long snapshot = value;
-            if ((snapshot & 15L) == 0L) {
-                Thread.yield();
-            }
-            value = snapshot + 1;
+            value++;
         }
 
         private long get() {
@@ -89,16 +120,4 @@ public class RaceConditionDemoService {
         }
     }
 
-    private static final class SynchronizedCounter {
-
-        private long value;
-
-        private synchronized void increment() {
-            value++;
-        }
-
-        private synchronized long get() {
-            return value;
-        }
-    }
 }
