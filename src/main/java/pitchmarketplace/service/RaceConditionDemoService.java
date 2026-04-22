@@ -16,8 +16,8 @@ public class RaceConditionDemoService {
 
     public RaceConditionDemoResultDto demonstrate(RaceConditionDemoRequest request) {
         UnsafeCounter unsafeCounter = new UnsafeCounter();
-        SafeCounter safeCounter = new AtomicSafeCounter();
-        // SafeCounter safeCounter = new SynchronizedCounter();
+        AtomicLong atomicCounter = new AtomicLong();
+        // SynchronizedCounter safeCounter = new SynchronizedCounter();
 
         int threads = request.threads();
         int incrementsPerThread = request.incrementsPerThread();
@@ -32,7 +32,8 @@ public class RaceConditionDemoService {
                     startLatch.await();
                     for (int i = 0; i < incrementsPerThread; i++) {
                         unsafeCounter.increment();
-                        safeCounter.increment();
+                        atomicCounter.incrementAndGet();
+                        // safeCounter.increment();
                     }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
@@ -60,49 +61,27 @@ public class RaceConditionDemoService {
 
         long expected = (long) threads * incrementsPerThread;
         long unsafeValue = unsafeCounter.get();
+        long safeValue = atomicCounter.get();
+        // long safeValue = safeCounter.get();
         return new RaceConditionDemoResultDto(
                 threads,
                 incrementsPerThread,
                 expected,
                 unsafeValue,
-                safeCounter.get(),
+                safeValue,
                 expected - unsafeValue
         );
     }
 
-    private interface SafeCounter {
-
-        void increment();
-
-        long get();
-    }
-
-    private static final class AtomicSafeCounter implements SafeCounter {
-
-        private final AtomicLong value = new AtomicLong();
-
-        @Override
-        public void increment() {
-            value.incrementAndGet();
-        }
-
-        @Override
-        public long get() {
-            return value.get();
-        }
-    }
-
-    private static final class SynchronizedCounter implements SafeCounter {
+    private static final class SynchronizedCounter {
 
         private long value;
 
-        @Override
-        public synchronized void increment() {
+        private synchronized void increment() {
             value++;
         }
 
-        @Override
-        public synchronized long get() {
+        private synchronized long get() {
             return value;
         }
     }
