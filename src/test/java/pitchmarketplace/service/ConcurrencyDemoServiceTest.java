@@ -86,7 +86,7 @@ class ConcurrencyDemoServiceTest {
         private String lastPitchName;
 
         private RecordingPitchLoadReportAsyncWorker(ConcurrencyTaskRegistryService registryService) {
-            super(mock(BookingRepository.class), mock(OpenGameRepository.class), registryService);
+            super(mock(BookingRepository.class), mock(OpenGameRepository.class), registryService, 0L);
         }
 
         @Override

@@ -31,7 +31,7 @@ class PitchLoadReportAsyncWorkerTest {
     @BeforeEach
     void setUp() {
         registryService = new ConcurrencyTaskRegistryService();
-        worker = new PitchLoadReportAsyncWorker(bookingRepository, openGameRepository, registryService);
+        worker = new PitchLoadReportAsyncWorker(bookingRepository, openGameRepository, registryService, 0L);
     }
 
     @AfterEach

@@ -1,6 +1,7 @@
 package pitchmarketplace.service;
 
 import java.util.concurrent.CompletableFuture;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import pitchmarketplace.domain.enums.BookingStatus;
@@ -12,27 +13,28 @@ import pitchmarketplace.repository.OpenGameRepository;
 @Service
 public class PitchLoadReportAsyncWorker {
 
-    private static final long REPORT_GENERATION_DELAY_MS = 1000L;
-
     private final BookingRepository bookingRepository;
     private final OpenGameRepository openGameRepository;
     private final ConcurrencyTaskRegistryService taskRegistryService;
+    private final long reportGenerationDelayMs;
 
     public PitchLoadReportAsyncWorker(
             BookingRepository bookingRepository,
             OpenGameRepository openGameRepository,
-            ConcurrencyTaskRegistryService taskRegistryService
+            ConcurrencyTaskRegistryService taskRegistryService,
+            @Value("${app.concurrency.report-generation-delay-ms:10000}") long reportGenerationDelayMs
     ) {
         this.bookingRepository = bookingRepository;
         this.openGameRepository = openGameRepository;
         this.taskRegistryService = taskRegistryService;
+        this.reportGenerationDelayMs = reportGenerationDelayMs;
     }
 
     @Async("concurrencyTaskExecutor")
     public CompletableFuture<Void> generatePitchLoadReport(long taskId, Long pitchId, String pitchName) {
         taskRegistryService.markRunning(taskId);
         try {
-            Thread.sleep(REPORT_GENERATION_DELAY_MS);
+            Thread.sleep(reportGenerationDelayMs);
             PitchLoadReportResultDto result = new PitchLoadReportResultDto(
                     pitchId,
                     pitchName,
