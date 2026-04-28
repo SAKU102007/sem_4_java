@@ -120,7 +120,7 @@ public class RaceConditionDemoService {
             value++;
         }
 
-        private synchronized long get() {
+        private long get() {
             return value;
         }
     }
