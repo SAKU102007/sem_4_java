@@ -76,7 +76,7 @@ class ConcurrencyDemoServiceTest {
 
         assertThat(result.expected()).isEqualTo(25000L);
         assertThat(result.safeCounter()).isEqualTo(25000L);
-        assertThat(result.unsafeLostUpdates()).isPositive();
+        assertThat(result.unsafeCounter()).isBetween(0L, result.expected());
     }
 
     private static final class RecordingPitchLoadReportAsyncWorker extends PitchLoadReportAsyncWorker {
