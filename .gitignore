@@ -20,4 +20,3 @@ logs/
 
 # Load testing artifacts
 /jmeter/results/
-/jmeter/lab6-concurrency-async-report.jmx
