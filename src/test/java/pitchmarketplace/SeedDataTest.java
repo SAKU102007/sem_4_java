@@ -49,22 +49,30 @@ class SeedDataTest {
     @Test
     void shouldSkipSeedingWhenUsersAlreadyExist() throws Exception {
         when(userRepository.count()).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(List.of());
+        when(pitchRepository.findAll()).thenReturn(List.of());
 
         seedData.run();
 
         verify(userRepository).count();
-        verifyNoInteractions(pitchRepository, bookingRepository, openGameRepository);
+        verify(userRepository).findAll();
+        verify(pitchRepository).findAll();
+        verifyNoInteractions(bookingRepository, openGameRepository);
     }
 
     @Test
     void shouldSkipSeedingWhenPitchesAlreadyExist() throws Exception {
         when(userRepository.count()).thenReturn(0L);
         when(pitchRepository.count()).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(List.of());
+        when(pitchRepository.findAll()).thenReturn(List.of());
 
         seedData.run();
 
         verify(userRepository).count();
         verify(pitchRepository).count();
+        verify(userRepository).findAll();
+        verify(pitchRepository).findAll();
         verifyNoInteractions(bookingRepository, openGameRepository);
     }
 
@@ -73,10 +81,14 @@ class SeedDataTest {
         when(userRepository.count()).thenReturn(0L);
         when(pitchRepository.count()).thenReturn(0L);
         when(bookingRepository.count()).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(List.of());
+        when(pitchRepository.findAll()).thenReturn(List.of());
 
         seedData.run();
 
         verify(bookingRepository).count();
+        verify(userRepository).findAll();
+        verify(pitchRepository).findAll();
         verifyNoInteractions(openGameRepository);
     }
 
@@ -86,10 +98,14 @@ class SeedDataTest {
         when(pitchRepository.count()).thenReturn(0L);
         when(bookingRepository.count()).thenReturn(0L);
         when(openGameRepository.count()).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(List.of());
+        when(pitchRepository.findAll()).thenReturn(List.of());
 
         seedData.run();
 
         verify(openGameRepository).count();
+        verify(userRepository).findAll();
+        verify(pitchRepository).findAll();
     }
 
     @Test
@@ -110,9 +126,9 @@ class SeedDataTest {
         ArgumentCaptor<OpenGame> openGameCaptor = ArgumentCaptor.forClass(OpenGame.class);
 
         verify(userRepository, times(10)).save(any(User.class));
-        verify(pitchRepository, times(6)).save(pitchCaptor.capture());
-        verify(bookingRepository, times(6)).save(bookingCaptor.capture());
-        verify(openGameRepository, times(6)).save(openGameCaptor.capture());
+        verify(pitchRepository, times(8)).save(pitchCaptor.capture());
+        verify(bookingRepository, times(8)).save(bookingCaptor.capture());
+        verify(openGameRepository, times(8)).save(openGameCaptor.capture());
 
         Pitch firstPitch = pitchCaptor.getAllValues().get(0);
         Booking firstBooking = bookingCaptor.getAllValues().get(0);

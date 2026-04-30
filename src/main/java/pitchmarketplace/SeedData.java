@@ -2,6 +2,7 @@ package pitchmarketplace;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,28 @@ import pitchmarketplace.repository.UserRepository;
 
 @Component
 public class SeedData implements CommandLineRunner {
+
+    private static final List<PitchSeedName> CLEAN_PITCH_NAMES = List.of(
+            new PitchSeedName("Дворец футбола", "Центральный", "Немига"),
+            new PitchSeedName("Минск-Арена Футбол", "Центральный", "Спортивная"),
+            new PitchSeedName("Сокол Арена", "Октябрьский", "Ковальская Слобода"),
+            new PitchSeedName("Уручье Парк", "Первомайский", "Уручье"),
+            new PitchSeedName("Чижовка Футбол", "Заводской", "Автозаводская"),
+            new PitchSeedName("Веснянка Спорт", "Центральный", "Молодежная"),
+            new PitchSeedName("Лошица Арена", "Ленинский", "Пролетарская"),
+            new PitchSeedName("Комаровка Футзал", "Советский", "Площадь Якуба Коласа")
+    );
+
+    private static final List<String> CLEAN_USER_NAMES = List.of(
+            "Алексей",
+            "Максим",
+            "Илья",
+            "Денис",
+            "Егор",
+            "Артем",
+            "Павел",
+            "Никита"
+    );
 
     private final UserRepository userRepository;
     private final PitchRepository pitchRepository;
@@ -44,6 +67,7 @@ public class SeedData implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (!isDatabaseEmpty()) {
+            normalizeExistingDemoData();
             return;
         }
 
@@ -59,7 +83,7 @@ public class SeedData implements CommandLineRunner {
         User andrey = userRepository.save(new User(null, "Андрей", 62, UserRole.ADMIN));
 
         Pitch pitchOne = pitchRepository.save(createPitch(
-                "МСК Арена",
+                "Дворец футбола",
                 PitchType.FIVE_FUTSAL,
                 "Центральный",
                 "Немига",
@@ -68,49 +92,67 @@ public class SeedData implements CommandLineRunner {
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 20, "8.00")
         ));
         Pitch pitchTwo = pitchRepository.save(createPitch(
-                "Олимпик Парк",
+                "Минск-Арена Футбол",
                 PitchType.EIGHT,
-                "Советский",
-                "Московская",
+                "Центральный",
+                "Спортивная",
                 "150.00",
                 new EquipmentSeedSpec(EquipmentItemType.BALL, 6, "12.00"),
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 14, "7.00")
         ));
         Pitch pitchThree = pitchRepository.save(createPitch(
-                "Трактор Филд",
+                "Сокол Арена",
                 PitchType.ELEVEN,
-                "Партизанский",
-                "Тракторный завод",
+                "Октябрьский",
+                "Ковальская Слобода",
                 "200.00",
                 new EquipmentSeedSpec(EquipmentItemType.BALL, 12, "17.00"),
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 24, "11.00")
         ));
         Pitch pitchFour = pitchRepository.save(createPitch(
-                "Футзал Хаб",
+                "Уручье Парк",
                 PitchType.FIVE_FUTSAL,
-                "Центральный",
-                "Фрунзенская",
+                "Первомайский",
+                "Уручье",
                 "110.00",
                 new EquipmentSeedSpec(EquipmentItemType.BALL, 8, "13.00"),
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 16, "8.00")
         ));
         Pitch pitchFive = pitchRepository.save(createPitch(
-                "Парк Футбол",
+                "Чижовка Футбол",
                 PitchType.FIVE_TURF,
-                "Ленинский",
-                "Пролетарская",
+                "Заводской",
+                "Автозаводская",
                 "95.00",
                 new EquipmentSeedSpec(EquipmentItemType.BALL, 7, "10.00"),
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 12, "6.00")
         ));
         Pitch pitchSix = pitchRepository.save(createPitch(
-                "Лошицкий Центр",
+                "Веснянка Спорт",
                 PitchType.EIGHT,
-                "Октябрьский",
-                "Институт культуры",
+                "Центральный",
+                "Молодежная",
                 "145.00",
                 new EquipmentSeedSpec(EquipmentItemType.BALL, 9, "14.00"),
                 new EquipmentSeedSpec(EquipmentItemType.BIBS, 18, "9.00")
+        ));
+        Pitch pitchSeven = pitchRepository.save(createPitch(
+                "Лошица Арена",
+                PitchType.EIGHT,
+                "Ленинский",
+                "Пролетарская",
+                "130.00",
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 8, "12.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 16, "8.00")
+        ));
+        Pitch pitchEight = pitchRepository.save(createPitch(
+                "Комаровка Футзал",
+                PitchType.FIVE_FUTSAL,
+                "Советский",
+                "Площадь Якуба Коласа",
+                "115.00",
+                new EquipmentSeedSpec(EquipmentItemType.BALL, 7, "11.00"),
+                new EquipmentSeedSpec(EquipmentItemType.BIBS, 14, "7.00")
         ));
 
         LocalDateTime baseStart = LocalDateTime.of(2026, 3, 10, 18, 0);
@@ -150,6 +192,18 @@ public class SeedData implements CommandLineRunner {
                 maxim,
                 baseStart.plusDays(3),
                 BookingStatus.CANCELLED
+        ));
+        Booking bookingSeven = bookingRepository.save(createBooking(
+                pitchSeven,
+                ilya,
+                baseStart.plusDays(4),
+                BookingStatus.CONFIRMED
+        ));
+        Booking bookingEight = bookingRepository.save(createBooking(
+                pitchEight,
+                denis,
+                baseStart.plusDays(5),
+                BookingStatus.CREATED
         ));
 
         openGameRepository.save(createOpenGame(
@@ -221,6 +275,28 @@ public class SeedData implements CommandLineRunner {
                 andrey,
                 kirill
         ));
+        openGameRepository.save(createOpenGame(
+                bookingSeven,
+                ilya,
+                45,
+                78,
+                12,
+                OpenGameStatus.OPEN,
+                ilya,
+                alexey,
+                pavel
+        ));
+        openGameRepository.save(createOpenGame(
+                bookingEight,
+                denis,
+                50,
+                82,
+                10,
+                OpenGameStatus.OPEN,
+                denis,
+                maxim,
+                artem
+        ));
     }
 
     private boolean isDatabaseEmpty() {
@@ -228,6 +304,39 @@ public class SeedData implements CommandLineRunner {
                 && pitchRepository.count() == 0
                 && bookingRepository.count() == 0
                 && openGameRepository.count() == 0;
+    }
+
+    private void normalizeExistingDemoData() {
+        List<Pitch> pitches = pitchRepository.findAll();
+        for (int i = 0; i < pitches.size(); i++) {
+            Pitch pitch = pitches.get(i);
+            if (isGeneratedPitchName(pitch.getName())) {
+                PitchSeedName cleanName = CLEAN_PITCH_NAMES.get(i % CLEAN_PITCH_NAMES.size());
+                pitch.setName(cleanName.name());
+                pitch.setDistrict(cleanName.district());
+                pitch.setMetro(cleanName.metro());
+            }
+        }
+
+        List<User> users = userRepository.findAll();
+        for (int i = 0; i < users.size(); i++) {
+            User user = users.get(i);
+            if (isGeneratedUserName(user.getName())) {
+                user.setName(CLEAN_USER_NAMES.get(i % CLEAN_USER_NAMES.size()));
+            }
+        }
+    }
+
+    private boolean isGeneratedPitchName(String name) {
+        return name.startsWith("Tx Pitch ")
+                || name.startsWith("Bulk Tx Pitch ")
+                || name.startsWith("Cascade Demo Pitch")
+                || name.matches(".*\\d{6,}.*");
+    }
+
+    private boolean isGeneratedUserName(String name) {
+        return name.startsWith("Tx Organizer ")
+                || name.matches(".*\\d{6,}.*");
     }
 
     private Pitch createPitch(
@@ -294,6 +403,13 @@ public class SeedData implements CommandLineRunner {
             EquipmentItemType itemType,
             int stockTotal,
             String rentPrice
+    ) {
+    }
+
+    private record PitchSeedName(
+            String name,
+            String district,
+            String metro
     ) {
     }
 }

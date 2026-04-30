@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   Dumbbell,
   Edit3,
+  Globe2,
   MapPin,
   Plus,
   RefreshCw,
@@ -29,6 +30,7 @@ import type {
 
 type ViewKey = 'dashboard' | 'pitches' | 'bookings' | 'openGames' | 'users' | 'equipment';
 type ModalMode = 'create' | 'edit';
+type Language = 'ru' | 'en';
 type FormValue = string | string[];
 type FormState = Record<string, FormValue>;
 
@@ -45,40 +47,256 @@ const openGameStatuses = ['OPEN', 'FULL', 'CANCELLED'] as const;
 const userRoles = ['PLAYER', 'VENUE_OWNER', 'ADMIN'] as const;
 const equipmentTypes = ['BALL', 'BIBS'] as const;
 
-const pitchTypeLabels = {
-  FIVE_TURF: '5x5 Turf',
-  FIVE_FUTSAL: '5x5 Futsal',
-  EIGHT: '8x8',
-  ELEVEN: '11x11',
+const dictionaries = {
+  ru: {
+    pitchTypes: {
+      FIVE_TURF: '5 на 5, газон',
+      FIVE_FUTSAL: '5 на 5, футзал',
+      EIGHT: '8 на 8',
+      ELEVEN: '11 на 11',
+    },
+    statuses: {
+      CREATED: 'Создано',
+      CONFIRMED: 'Подтверждено',
+      CANCELLED: 'Отменено',
+      OPEN: 'Открыта',
+      FULL: 'Набрана',
+    },
+    roles: {
+      PLAYER: 'Игрок',
+      VENUE_OWNER: 'Владелец',
+      ADMIN: 'Админ',
+    },
+    equipment: {
+      BALL: 'Мячи',
+      BIBS: 'Манишки',
+    },
+    navItems: [
+      { key: 'dashboard', label: 'Главная' },
+      { key: 'pitches', label: 'Площадки' },
+      { key: 'bookings', label: 'Брони' },
+      { key: 'openGames', label: 'Игры' },
+      { key: 'users', label: 'Игроки' },
+      { key: 'equipment', label: 'Прокат' },
+    ] as Array<{ key: ViewKey; label: string }>,
+  },
+  en: {
+    pitchTypes: {
+      FIVE_TURF: '5v5 turf',
+      FIVE_FUTSAL: '5v5 futsal',
+      EIGHT: '8v8',
+      ELEVEN: '11v11',
+    },
+    statuses: {
+      CREATED: 'Created',
+      CONFIRMED: 'Confirmed',
+      CANCELLED: 'Cancelled',
+      OPEN: 'Open',
+      FULL: 'Full',
+    },
+    roles: {
+      PLAYER: 'Player',
+      VENUE_OWNER: 'Owner',
+      ADMIN: 'Admin',
+    },
+    equipment: {
+      BALL: 'Balls',
+      BIBS: 'Bibs',
+    },
+    navItems: [
+      { key: 'dashboard', label: 'Home' },
+      { key: 'pitches', label: 'Pitches' },
+      { key: 'bookings', label: 'Bookings' },
+      { key: 'openGames', label: 'Games' },
+      { key: 'users', label: 'Players' },
+      { key: 'equipment', label: 'Gear' },
+    ] as Array<{ key: ViewKey; label: string }>,
+  },
 };
 
-const statusLabels = {
-  CREATED: 'Создано',
-  CONFIRMED: 'Подтверждено',
-  CANCELLED: 'Отменено',
-  OPEN: 'Открыта',
-  FULL: 'Набрана',
+const ui = {
+  ru: {
+    brandCity: 'Минск',
+    brandName: 'Аренда полей',
+    loading: 'Обновляем данные площадок...',
+    saveSuccess: 'Изменения сохранены',
+    deleteSuccess: 'Запись удалена',
+    genericError: 'Не удалось выполнить действие',
+    deleteConfirm: 'Удалить запись? Если она используется в расписании, удалить её не получится.',
+    heroTitle: 'Тут бронируют футбольные площадки',
+    heroSubtitle: 'Выберите поле, соберите команду и добавьте прокат за пару минут.',
+    refresh: 'Обновить',
+    searchPlaceholder: 'Площадка, район, игрок или статус',
+    district: 'Район',
+    districtPlaceholder: 'Например: Центральный',
+    show: 'Показать',
+    reset: 'Сбросить',
+    filter: 'Фильтровать',
+    all: 'Все',
+    type: 'Тип',
+    organizer: 'Организатор',
+    status: 'Статус',
+    found: 'Найдено записей',
+    page: 'Страница',
+    of: 'из',
+    statsPitches: 'Площадки',
+    statsBookings: 'Бронирования',
+    statsGames: 'Открытые игры',
+    statsUsers: 'Пользователи',
+    statsEquipment: 'Инвентарь',
+    allTogether: 'Всё под рукой',
+    relationTitle: 'Расписание, прокат и участники собраны в одном месте',
+    relationText: 'Откройте карточку площадки или игры, чтобы увидеть детали без лишних переходов.',
+    bookings: 'Брони',
+    gear: 'Прокат',
+    participants: 'Участники',
+    popularPitches: 'Популярные площадки',
+    popularSubtitle: 'Быстрый выбор поля по формату, району и доступным услугам.',
+    openAll: 'Открыть все',
+    addPitch: 'Добавить площадку',
+    create: 'Создать',
+    sectionPitches: 'Площадки',
+    sectionPitchesSub: 'Выбирайте поле по району, формату игры и цене',
+    sectionBookings: 'Брони',
+    sectionBookingsSub: 'Проверяйте расписание и быстро находите нужную запись',
+    sectionGames: 'Игры',
+    sectionGamesSub: 'Открытые матчи, набор игроков и уровень команды',
+    sectionUsers: 'Игроки',
+    sectionUsersSub: 'Профили, рейтинг и участие в матчах',
+    sectionEquipment: 'Прокат',
+    sectionEquipmentSub: 'Мячи и манишки, которые доступны на выбранных площадках',
+    metro: 'метро',
+    priceHour: 'BYN/час',
+    noBookings: 'пока нет',
+    noGear: 'нет',
+    inventory: 'Инвентарь',
+    booking: 'Бронь',
+    pitch: 'Площадка',
+    player: 'Игрок',
+    time: 'Время',
+    match: 'Матч',
+    game: 'Игра',
+    notCreated: 'не создан',
+    skill: 'Навык',
+    limit: 'Лимит',
+    players: 'игроков',
+    noParticipants: 'Участников пока нет',
+    rating: 'рейтинг',
+    organizes: 'Организует',
+    games: 'Игры',
+    items: 'шт.',
+    stock: 'Остаток',
+    price: 'Цена',
+    createMode: 'Создание',
+    editMode: 'Редактирование',
+    close: 'Закрыть',
+    name: 'Название',
+    start: 'Начало',
+    end: 'Конец',
+    skillFrom: 'Навык от',
+    skillTo: 'Навык до',
+    maxPlayers: 'Максимум игроков',
+    role: 'Роль',
+    quantity: 'Количество',
+    rentPrice: 'Цена аренды',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    edit: 'Редактировать',
+    delete: 'Удалить',
+  },
+  en: {
+    brandCity: 'Minsk',
+    brandName: 'Pitch Booking',
+    loading: 'Refreshing pitch data...',
+    saveSuccess: 'Changes saved',
+    deleteSuccess: 'Record deleted',
+    genericError: 'Could not complete the action',
+    deleteConfirm: 'Delete this record? If it is used in the schedule, deletion may be blocked.',
+    heroTitle: 'Book football pitches in minutes',
+    heroSubtitle: 'Choose a venue, gather a team, and add gear in one place.',
+    refresh: 'Refresh',
+    searchPlaceholder: 'Pitch, district, player, or status',
+    district: 'District',
+    districtPlaceholder: 'Example: Central',
+    show: 'Show',
+    reset: 'Reset',
+    filter: 'Filter',
+    all: 'All',
+    type: 'Type',
+    organizer: 'Organizer',
+    status: 'Status',
+    found: 'Found',
+    page: 'Page',
+    of: 'of',
+    statsPitches: 'Pitches',
+    statsBookings: 'Bookings',
+    statsGames: 'Open games',
+    statsUsers: 'Players',
+    statsEquipment: 'Gear',
+    allTogether: 'All in one place',
+    relationTitle: 'Schedule, rental gear, and players stay connected',
+    relationText: 'Open a pitch or game card to see every important detail without extra screens.',
+    bookings: 'Bookings',
+    gear: 'Gear',
+    participants: 'Players',
+    popularPitches: 'Popular pitches',
+    popularSubtitle: 'Quickly compare format, district, and available services.',
+    openAll: 'View all',
+    addPitch: 'Add pitch',
+    create: 'Create',
+    sectionPitches: 'Pitches',
+    sectionPitchesSub: 'Choose by district, game format, and hourly price',
+    sectionBookings: 'Bookings',
+    sectionBookingsSub: 'Check the schedule and find any booking quickly',
+    sectionGames: 'Games',
+    sectionGamesSub: 'Open matches, player recruitment, and team level',
+    sectionUsers: 'Players',
+    sectionUsersSub: 'Profiles, ratings, and match participation',
+    sectionEquipment: 'Gear',
+    sectionEquipmentSub: 'Balls and bibs available at selected pitches',
+    metro: 'metro',
+    priceHour: 'BYN/hour',
+    noBookings: 'none yet',
+    noGear: 'none',
+    inventory: 'Gear',
+    booking: 'Booking',
+    pitch: 'Pitch',
+    player: 'Player',
+    time: 'Time',
+    match: 'Match',
+    game: 'Game',
+    notCreated: 'not created',
+    skill: 'Skill',
+    limit: 'Limit',
+    players: 'players',
+    noParticipants: 'No players yet',
+    rating: 'rating',
+    organizes: 'Organizes',
+    games: 'Games',
+    items: 'pcs.',
+    stock: 'Stock',
+    price: 'Price',
+    createMode: 'Create',
+    editMode: 'Edit',
+    close: 'Close',
+    name: 'Name',
+    start: 'Start',
+    end: 'End',
+    skillFrom: 'Skill from',
+    skillTo: 'Skill to',
+    maxPlayers: 'Max players',
+    role: 'Role',
+    quantity: 'Quantity',
+    rentPrice: 'Rental price',
+    cancel: 'Cancel',
+    save: 'Save',
+    edit: 'Edit',
+    delete: 'Delete',
+  },
 };
 
-const roleLabels = {
-  PLAYER: 'Игрок',
-  VENUE_OWNER: 'Владелец',
-  ADMIN: 'Админ',
-};
-
-const equipmentLabels = {
-  BALL: 'Мячи',
-  BIBS: 'Манишки',
-};
-
-const navItems: Array<{ key: ViewKey; label: string; short: string }> = [
-  { key: 'dashboard', label: 'Главная', short: 'Home' },
-  { key: 'pitches', label: 'Площадки', short: 'Pitch' },
-  { key: 'bookings', label: 'Бронирования', short: 'Book' },
-  { key: 'openGames', label: 'Открытые игры', short: 'Game' },
-  { key: 'users', label: 'Пользователи', short: 'User' },
-  { key: 'equipment', label: 'Инвентарь', short: 'Gear' },
-];
+type Dictionary = (typeof dictionaries)[Language];
+type UiText = (typeof ui)[Language];
 
 const emptyBookingFilters: BookingSearchFilters = {
   district: '',
@@ -90,6 +308,21 @@ const emptyBookingFilters: BookingSearchFilters = {
   page: 0,
   size: 12,
 };
+
+const cleanPitchNames = [
+  { name: 'Дворец футбола', district: 'Центральный', metro: 'Немига' },
+  { name: 'Минск-Арена Футбол', district: 'Центральный', metro: 'Спортивная' },
+  { name: 'Сокол Арена', district: 'Октябрьский', metro: 'Ковальская Слобода' },
+  { name: 'Уручье Парк', district: 'Первомайский', metro: 'Уручье' },
+  { name: 'Чижовка Футбол', district: 'Заводской', metro: 'Автозаводская' },
+  { name: 'Веснянка Спорт', district: 'Центральный', metro: 'Молодежная' },
+  { name: 'Лошица Арена', district: 'Ленинский', metro: 'Пролетарская' },
+  { name: 'Комаровка Футзал', district: 'Советский', metro: 'Площадь Якуба Коласа' },
+  { name: 'Малиновка Спорт', district: 'Московский', metro: 'Малиновка' },
+  { name: 'Каменная Горка Арена', district: 'Фрунзенский', metro: 'Каменная Горка' },
+];
+
+const cleanUserNames = ['Алексей', 'Максим', 'Илья', 'Денис', 'Егор', 'Артем', 'Павел', 'Никита'];
 
 function App() {
   const [activeView, setActiveView] = useState<ViewKey>('dashboard');
@@ -103,6 +336,7 @@ function App() {
   const [bookingFilters, setBookingFilters] = useState<BookingSearchFilters>(emptyBookingFilters);
   const [pitchDistrict, setPitchDistrict] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [language, setLanguage] = useState<Language>('ru');
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toast, setToast] = useState('');
@@ -117,6 +351,8 @@ function App() {
   const normalizedSearch = catalogSearch.trim().toLowerCase();
   const displayedBookings = bookingSearchResult?.content ?? bookings;
   const displayedPitches = pitchFilterResult ?? pitches;
+  const dictionary = dictionaries[language];
+  const t = ui[language];
 
   const searchedPitches = pitches.filter((pitch) => {
     return matchesSearch([pitch.name, pitch.district, pitch.metro, pitch.type], normalizedSearch);
@@ -152,10 +388,10 @@ function App() {
         api.listUsers(),
         api.listEquipmentOffers(),
       ]);
-      setPitches(loadedPitches);
+      setPitches(loadedPitches.map(normalizePitchForDisplay));
       setBookings(loadedBookings);
       setOpenGames(loadedOpenGames);
-      setUsers(loadedUsers);
+      setUsers(loadedUsers.map(normalizeUserForDisplay));
       setEquipmentOffers(loadedEquipment);
       setPitchFilterResult(null);
       setBookingSearchResult(null);
@@ -170,7 +406,8 @@ function App() {
   async function applyPitchFilter() {
     setLoading(true);
     try {
-      setPitchFilterResult(await api.listPitches(pitchDistrict));
+      const filtered = await api.listPitches(pitchDistrict);
+      setPitchFilterResult(filtered.map(normalizePitchForDisplay));
     } catch (error) {
       showError(error);
     } finally {
@@ -202,7 +439,7 @@ function App() {
   }
 
   function showError(error: unknown) {
-    setToast(error instanceof Error ? error.message : 'Неожиданная ошибка API');
+    setToast(error instanceof Error ? error.message : t.genericError);
   }
 
   function openCreate(kind: EntityKind) {
@@ -259,7 +496,7 @@ function App() {
       if (modal.kind === 'equipment') {
         await (modal.mode === 'create' ? api.createEquipmentOffer(payload) : api.updateEquipmentOffer(id, payload));
       }
-      setToast('Изменения сохранены');
+      setToast(t.saveSuccess);
       setModal(null);
       await loadAll();
     } catch (error) {
@@ -268,7 +505,7 @@ function App() {
   }
 
   async function deleteEntity(kind: EntityKind, id: number) {
-    const confirmed = window.confirm('Удалить запись? Если у неё есть связанные данные, backend может отклонить удаление.');
+    const confirmed = window.confirm(t.deleteConfirm);
     if (!confirmed) {
       return;
     }
@@ -289,7 +526,7 @@ function App() {
       if (kind === 'equipment') {
         await api.deleteEquipmentOffer(id);
       }
-      setToast('Запись удалена');
+      setToast(t.deleteSuccess);
       await loadAll();
     } catch (error) {
       showError(error);
@@ -298,8 +535,11 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar
+      <TopBar
         activeView={activeView}
+        language={language}
+        t={t}
+        dictionary={dictionary}
         counts={{
           dashboard: pitches.length + bookings.length + openGames.length,
           pitches: pitches.length,
@@ -309,140 +549,162 @@ function App() {
           equipment: equipmentOffers.length,
         }}
         onNavigate={setActiveView}
+        onLanguageChange={setLanguage}
       />
 
-      <main className="workspace">
-        <Hero search={catalogSearch} onSearch={setCatalogSearch} onRefresh={loadAll} />
+      <div className="page-shell">
+        <Hero
+          search={catalogSearch}
+          t={t}
+          onSearch={setCatalogSearch}
+          onRefresh={loadAll}
+        />
 
-        {loading && <div className="loading-banner">Загружаем данные из Spring Boot API...</div>}
+        <main className="workspace">
+          {loading && <div className="loading-banner">{t.loading}</div>}
 
-        {activeView === 'dashboard' && (
-          <Dashboard
-            pitches={searchedPitches}
-            bookings={bookings}
-            users={users}
-            openGames={openGames}
-            equipmentOffers={equipmentOffers}
-            pitchMap={pitchMap}
-            userMap={userMap}
-            onOpenPitches={() => setActiveView('pitches')}
-            onCreatePitch={() => openCreate('pitch')}
-            onEditPitch={(pitch) => openEdit('pitch', pitch)}
-            onDeletePitch={(id) => void deleteEntity('pitch', id)}
-          />
-        )}
-
-        {activeView === 'pitches' && (
-          <section className="section-stack">
-            <SectionHeader title="Площадки" subtitle="CRUD, фильтр по району и OneToMany связи" onAdd={() => openCreate('pitch')} />
-            <div className="filter-strip">
-              <label>
-                Район
-                <input value={pitchDistrict} onChange={(event) => setPitchDistrict(event.target.value)} placeholder="Например: Центральный" />
-              </label>
-              <button type="button" onClick={applyPitchFilter}>Применить</button>
-              <button type="button" className="ghost-button" onClick={clearPitchFilter}>Сбросить</button>
-            </div>
-            <CardGrid>
-              {filteredPitches.map((pitch) => (
-                <PitchCard
-                  key={pitch.id}
-                  pitch={pitch}
-                  bookings={bookings.filter((booking) => booking.pitchId === pitch.id)}
-                  equipment={equipmentOffers.filter((offer) => offer.pitchId === pitch.id)}
-                  onEdit={() => openEdit('pitch', pitch)}
-                  onDelete={() => void deleteEntity('pitch', pitch.id)}
-                />
-              ))}
-            </CardGrid>
-          </section>
-        )}
-
-        {activeView === 'bookings' && (
-          <section className="section-stack">
-            <SectionHeader title="Бронирования" subtitle="CRUD и фильтрация через JPQL search endpoint" onAdd={() => openCreate('booking')} />
-            <BookingFilters
-              filters={bookingFilters}
-              onChange={setBookingFilters}
-              onSubmit={applyBookingFilters}
-              onReset={clearBookingFilters}
+          {activeView === 'dashboard' && (
+            <Dashboard
+              t={t}
+              dictionary={dictionary}
+              pitches={searchedPitches}
+              bookings={bookings}
+              users={users}
+              openGames={openGames}
+              equipmentOffers={equipmentOffers}
+              pitchMap={pitchMap}
+              userMap={userMap}
+              onOpenPitches={() => setActiveView('pitches')}
+              onCreatePitch={() => openCreate('pitch')}
+              onEditPitch={(pitch) => openEdit('pitch', pitch)}
+              onDeletePitch={(id) => void deleteEntity('pitch', id)}
             />
-            {bookingSearchResult && (
-              <div className="search-result-note">
-                Найдено: {bookingSearchResult.totalElements}. Страница {bookingSearchResult.pageNumber + 1} из {Math.max(bookingSearchResult.totalPages, 1)}.
+          )}
+
+          {activeView === 'pitches' && (
+            <section className="section-stack">
+              <SectionHeader title={t.sectionPitches} subtitle={t.sectionPitchesSub} addLabel={t.create} onAdd={() => openCreate('pitch')} />
+              <div className="filter-strip">
+                <label>
+                  {t.district}
+                  <input value={pitchDistrict} onChange={(event) => setPitchDistrict(event.target.value)} placeholder={t.districtPlaceholder} />
+                </label>
+                <button type="button" onClick={applyPitchFilter}>{t.show}</button>
+                <button type="button" className="ghost-button" onClick={clearPitchFilter}>{t.reset}</button>
               </div>
-            )}
-            <CardGrid>
-              {filteredBookings.map((booking) => (
-                <BookingCard
-                  key={booking.id}
-                  booking={booking}
-                  pitch={pitchMap.get(booking.pitchId)}
-                  organizer={userMap.get(booking.organizerId)}
-                  openGame={openGames.find((game) => game.bookingId === booking.id)}
-                  onEdit={() => openEdit('booking', booking)}
-                  onDelete={() => void deleteEntity('booking', booking.id)}
-                />
-              ))}
-            </CardGrid>
-          </section>
-        )}
+              <CardGrid>
+                {filteredPitches.map((pitch) => (
+                  <PitchCard
+                    key={pitch.id}
+                    t={t}
+                    dictionary={dictionary}
+                    pitch={pitch}
+                    bookings={bookings.filter((booking) => booking.pitchId === pitch.id)}
+                    equipment={equipmentOffers.filter((offer) => offer.pitchId === pitch.id)}
+                    onEdit={() => openEdit('pitch', pitch)}
+                    onDelete={() => void deleteEntity('pitch', pitch.id)}
+                  />
+                ))}
+              </CardGrid>
+            </section>
+          )}
 
-        {activeView === 'openGames' && (
-          <section className="section-stack">
-            <SectionHeader title="Открытые игры" subtitle="ManyToMany участники + CRUD" onAdd={() => openCreate('openGame')} />
-            <CardGrid>
-              {filteredOpenGames.map((game) => (
-                <OpenGameCard
-                  key={game.id}
-                  game={game}
-                  booking={bookingMap.get(game.bookingId)}
-                  pitch={pitchMap.get(bookingMap.get(game.bookingId)?.pitchId ?? -1)}
-                  organizer={userMap.get(game.organizerId)}
-                  participants={game.participantIds.map((id) => userMap.get(id)).filter(Boolean) as User[]}
-                  onEdit={() => openEdit('openGame', game)}
-                  onDelete={() => void deleteEntity('openGame', game.id)}
-                />
-              ))}
-            </CardGrid>
-          </section>
-        )}
+          {activeView === 'bookings' && (
+            <section className="section-stack">
+              <SectionHeader title={t.sectionBookings} subtitle={t.sectionBookingsSub} addLabel={t.create} onAdd={() => openCreate('booking')} />
+              <BookingFilters
+                t={t}
+                dictionary={dictionary}
+                filters={bookingFilters}
+                onChange={setBookingFilters}
+                onSubmit={applyBookingFilters}
+                onReset={clearBookingFilters}
+              />
+              {bookingSearchResult && (
+                <div className="search-result-note">
+                  {t.found}: {bookingSearchResult.totalElements}. {t.page} {bookingSearchResult.pageNumber + 1} {t.of} {Math.max(bookingSearchResult.totalPages, 1)}.
+                </div>
+              )}
+              <CardGrid>
+                {filteredBookings.map((booking) => (
+                  <BookingCard
+                    key={booking.id}
+                    t={t}
+                    dictionary={dictionary}
+                    booking={booking}
+                    pitch={pitchMap.get(booking.pitchId)}
+                    organizer={userMap.get(booking.organizerId)}
+                    openGame={openGames.find((game) => game.bookingId === booking.id)}
+                    onEdit={() => openEdit('booking', booking)}
+                    onDelete={() => void deleteEntity('booking', booking.id)}
+                  />
+                ))}
+              </CardGrid>
+            </section>
+          )}
 
-        {activeView === 'users' && (
-          <section className="section-stack">
-            <SectionHeader title="Пользователи" subtitle="CRUD и связи пользователя с играми" onAdd={() => openCreate('user')} />
-            <CardGrid>
-              {filteredUsers.map((user) => (
-                <UserCard
-                  key={user.id}
-                  user={user}
-                  bookings={bookings.filter((booking) => booking.organizerId === user.id)}
-                  openGames={openGames.filter((game) => game.organizerId === user.id || game.participantIds.includes(user.id))}
-                  onEdit={() => openEdit('user', user)}
-                  onDelete={() => void deleteEntity('user', user.id)}
-                />
-              ))}
-            </CardGrid>
-          </section>
-        )}
+          {activeView === 'openGames' && (
+            <section className="section-stack">
+              <SectionHeader title={t.sectionGames} subtitle={t.sectionGamesSub} addLabel={t.create} onAdd={() => openCreate('openGame')} />
+              <CardGrid>
+                {filteredOpenGames.map((game) => (
+                  <OpenGameCard
+                    key={game.id}
+                    t={t}
+                    dictionary={dictionary}
+                    game={game}
+                    booking={bookingMap.get(game.bookingId)}
+                    pitch={pitchMap.get(bookingMap.get(game.bookingId)?.pitchId ?? -1)}
+                    organizer={userMap.get(game.organizerId)}
+                    participants={game.participantIds.map((id) => userMap.get(id)).filter(Boolean) as User[]}
+                    onEdit={() => openEdit('openGame', game)}
+                    onDelete={() => void deleteEntity('openGame', game.id)}
+                  />
+                ))}
+              </CardGrid>
+            </section>
+          )}
 
-        {activeView === 'equipment' && (
-          <section className="section-stack">
-            <SectionHeader title="Инвентарь" subtitle="CRUD и связь ManyToOne с площадками" onAdd={() => openCreate('equipment')} />
-            <CardGrid>
-              {filteredEquipment.map((offer) => (
-                <EquipmentCard
-                  key={offer.id}
-                  offer={offer}
-                  pitch={pitchMap.get(offer.pitchId)}
-                  onEdit={() => openEdit('equipment', offer)}
-                  onDelete={() => void deleteEntity('equipment', offer.id)}
-                />
-              ))}
-            </CardGrid>
-          </section>
-        )}
-      </main>
+          {activeView === 'users' && (
+            <section className="section-stack">
+              <SectionHeader title={t.sectionUsers} subtitle={t.sectionUsersSub} addLabel={t.create} onAdd={() => openCreate('user')} />
+              <CardGrid>
+                {filteredUsers.map((user) => (
+                  <UserCard
+                    key={user.id}
+                    t={t}
+                    dictionary={dictionary}
+                    user={user}
+                    bookings={bookings.filter((booking) => booking.organizerId === user.id)}
+                    openGames={openGames.filter((game) => game.organizerId === user.id || game.participantIds.includes(user.id))}
+                    onEdit={() => openEdit('user', user)}
+                    onDelete={() => void deleteEntity('user', user.id)}
+                  />
+                ))}
+              </CardGrid>
+            </section>
+          )}
+
+          {activeView === 'equipment' && (
+            <section className="section-stack">
+              <SectionHeader title={t.sectionEquipment} subtitle={t.sectionEquipmentSub} addLabel={t.create} onAdd={() => openCreate('equipment')} />
+              <CardGrid>
+                {filteredEquipment.map((offer) => (
+                  <EquipmentCard
+                    key={offer.id}
+                    t={t}
+                    dictionary={dictionary}
+                    offer={offer}
+                    pitch={pitchMap.get(offer.pitchId)}
+                    onEdit={() => openEdit('equipment', offer)}
+                    onDelete={() => void deleteEntity('equipment', offer.id)}
+                  />
+                ))}
+              </CardGrid>
+            </section>
+          )}
+        </main>
+      </div>
 
       {modal && (
         <EntityModal
@@ -450,6 +712,8 @@ function App() {
           pitches={pitches}
           bookings={bookings}
           users={users}
+          t={t}
+          dictionary={dictionary}
           onChange={setModalValue}
           onClose={() => setModal(null)}
           onSubmit={submitModal}
@@ -459,7 +723,7 @@ function App() {
       {toast && (
         <div className="toast">
           <span>{toast}</span>
-          <button type="button" onClick={() => setToast('')} aria-label="Закрыть уведомление">
+          <button type="button" onClick={() => setToast('')} aria-label={t.close}>
             <X size={16} />
           </button>
         </div>
@@ -468,26 +732,34 @@ function App() {
   );
 }
 
-function Sidebar({
+function TopBar({
   activeView,
+  language,
+  t,
+  dictionary,
   counts,
   onNavigate,
+  onLanguageChange,
 }: {
   activeView: ViewKey;
+  language: Language;
+  t: UiText;
+  dictionary: Dictionary;
   counts: Record<ViewKey, number>;
   onNavigate: (view: ViewKey) => void;
+  onLanguageChange: (language: Language) => void;
 }) {
   return (
-    <aside className="sidebar">
+    <header className="topbar">
       <div className="brand">
-        <div className="brand-mark">F</div>
+        <div className="brand-mark">P</div>
         <div>
-          <span>Коллекция</span>
-          <strong>Pitch Market</strong>
+          <span>{t.brandCity}</span>
+          <strong>{t.brandName}</strong>
         </div>
       </div>
       <nav className="nav-list">
-        {navItems.map((item) => (
+        {dictionary.navItems.map((item) => (
           <button
             key={item.key}
             type="button"
@@ -499,45 +771,53 @@ function Sidebar({
           </button>
         ))}
       </nav>
-      <div className="sidebar-footer">
-        <span>SPA Client</span>
-        <strong>React + API</strong>
+      <div className="top-actions">
+        <button
+          type="button"
+          className="top-action-button language-button"
+          onClick={() => onLanguageChange(language === 'ru' ? 'en' : 'ru')}
+        >
+          <Globe2 size={18} /> {language === 'ru' ? 'EN' : 'RU'}
+        </button>
       </div>
-    </aside>
+    </header>
   );
 }
 
 function Hero({
   search,
+  t,
   onSearch,
   onRefresh,
 }: {
   search: string;
+  t: UiText;
   onSearch: (value: string) => void;
   onRefresh: () => void;
 }) {
   return (
     <section className="hero-card">
-      <div className="eyebrow">Лабораторная 7 • Client</div>
       <div className="hero-content">
         <div>
-          <h1>Football Pitch Marketplace</h1>
-          <p>SPA-клиент для площадок, бронирований, открытых игр, пользователей и инвентаря.</p>
+          <h1>{t.heroTitle}</h1>
+          <p>{t.heroSubtitle}</p>
         </div>
         <button type="button" className="refresh-button" onClick={onRefresh}>
           <RefreshCw size={18} />
-          Обновить API
+          {t.refresh}
         </button>
       </div>
       <label className="hero-search">
         <Search size={18} />
-        <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Поиск по названию, району, статусу или игроку" />
+        <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder={t.searchPlaceholder} />
       </label>
     </section>
   );
 }
 
 function Dashboard({
+  t,
+  dictionary,
   pitches,
   bookings,
   users,
@@ -550,6 +830,8 @@ function Dashboard({
   onEditPitch,
   onDeletePitch,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   pitches: Pitch[];
   bookings: Booking[];
   users: User[];
@@ -565,35 +847,36 @@ function Dashboard({
   return (
     <section className="section-stack">
       <div className="stats-grid">
-        <StatCard icon={<MapPin />} value={pitches.length} label="Площадки" />
-        <StatCard icon={<CalendarClock />} value={bookings.length} label="Бронирования" />
-        <StatCard icon={<Trophy />} value={openGames.length} label="Открытые игры" />
-        <StatCard icon={<Users />} value={users.length} label="Пользователи" />
-        <StatCard icon={<Dumbbell />} value={equipmentOffers.length} label="Инвентарь" />
+        <StatCard icon={<MapPin />} value={pitches.length} label={t.statsPitches} />
+        <StatCard icon={<CalendarClock />} value={bookings.length} label={t.statsBookings} />
+        <StatCard icon={<Trophy />} value={openGames.length} label={t.statsGames} />
+        <StatCard icon={<Users />} value={users.length} label={t.statsUsers} />
+        <StatCard icon={<Dumbbell />} value={equipmentOffers.length} label={t.statsEquipment} />
       </div>
 
       <div className="relationship-panel">
         <div>
-          <span className="eyebrow">Связи в проекте</span>
-          <h2>OneToMany и ManyToMany показаны прямо в карточках</h2>
+          <span className="eyebrow">{t.allTogether}</span>
+          <h2>{t.relationTitle}</h2>
+          <p>{t.relationText}</p>
         </div>
         <div className="relation-grid">
-          <RelationPill title="Pitch → Bookings" value={bookings.length} />
-          <RelationPill title="Pitch → Equipment" value={equipmentOffers.length} />
-          <RelationPill title="OpenGame ↔ Users" value={openGames.reduce((sum, game) => sum + game.participantIds.length, 0)} />
+          <RelationPill title={t.bookings} value={bookings.length} />
+          <RelationPill title={t.gear} value={equipmentOffers.length} />
+          <RelationPill title={t.participants} value={openGames.reduce((sum, game) => sum + game.participantIds.length, 0)} />
         </div>
       </div>
 
       <div className="section-title-row">
         <div>
-          <h2>Популярные площадки</h2>
-          <p>Карточки как в музыкальном каталоге, но с реальными данными backend API.</p>
+          <h2>{t.popularPitches}</h2>
+          <p>{t.popularSubtitle}</p>
         </div>
         <div className="action-row">
-          <button type="button" className="ghost-button" onClick={onOpenPitches}>Открыть все</button>
+          <button type="button" className="ghost-button" onClick={onOpenPitches}>{t.openAll}</button>
           <button type="button" onClick={onCreatePitch}>
             <Plus size={16} />
-            Добавить
+            {t.addPitch}
           </button>
         </div>
       </div>
@@ -602,6 +885,8 @@ function Dashboard({
         {pitches.slice(0, 8).map((pitch) => (
           <PitchCard
             key={pitch.id}
+            t={t}
+            dictionary={dictionary}
             pitch={pitch}
             bookings={bookings.filter((booking) => booking.pitchId === pitch.id)}
             equipment={equipmentOffers.filter((offer) => offer.pitchId === pitch.id)}
@@ -613,7 +898,7 @@ function Dashboard({
 
       <div className="compact-board">
         {bookings.slice(0, 4).map((booking) => (
-          <MiniBooking key={booking.id} booking={booking} pitch={pitchMap.get(booking.pitchId)} user={userMap.get(booking.organizerId)} />
+          <MiniBooking key={booking.id} t={t} dictionary={dictionary} booking={booking} pitch={pitchMap.get(booking.pitchId)} user={userMap.get(booking.organizerId)} />
         ))}
       </div>
     </section>
@@ -623,10 +908,12 @@ function Dashboard({
 function SectionHeader({
   title,
   subtitle,
+  addLabel,
   onAdd,
 }: {
   title: string;
   subtitle: string;
+  addLabel: string;
   onAdd: () => void;
 }) {
   return (
@@ -637,18 +924,22 @@ function SectionHeader({
       </div>
       <button type="button" onClick={onAdd}>
         <Plus size={16} />
-        Создать
+        {addLabel}
       </button>
     </div>
   );
 }
 
 function BookingFilters({
+  t,
+  dictionary,
   filters,
   onChange,
   onSubmit,
   onReset,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   filters: BookingSearchFilters;
   onChange: (filters: BookingSearchFilters) => void;
   onSubmit: (event: FormEvent) => void;
@@ -657,44 +948,64 @@ function BookingFilters({
   return (
     <form className="filter-strip wide" onSubmit={onSubmit}>
       <label>
-        Район
+        {t.district}
         <input value={filters.district ?? ''} onChange={(event) => onChange({ ...filters, district: event.target.value })} />
       </label>
       <label>
-        Тип
+        {t.type}
         <select value={filters.pitchType ?? ''} onChange={(event) => onChange({ ...filters, pitchType: event.target.value as BookingSearchFilters['pitchType'] })}>
-          <option value="">Все</option>
+          <option value="">{t.all}</option>
           {pitchTypes.map((type) => (
-            <option key={type} value={type}>{pitchTypeLabels[type]}</option>
+            <option key={type} value={type}>{dictionary.pitchTypes[type]}</option>
           ))}
         </select>
       </label>
       <label>
-        Организатор
+        {t.organizer}
         <input value={filters.organizerName ?? ''} onChange={(event) => onChange({ ...filters, organizerName: event.target.value })} />
       </label>
       <label>
-        Статус
+        {t.status}
         <select value={filters.status ?? ''} onChange={(event) => onChange({ ...filters, status: event.target.value as BookingSearchFilters['status'] })}>
-          <option value="">Все</option>
+          <option value="">{t.all}</option>
           {bookingStatuses.map((status) => (
-            <option key={status} value={status}>{statusLabels[status]}</option>
+            <option key={status} value={status}>{dictionary.statuses[status]}</option>
           ))}
         </select>
       </label>
-      <button type="submit">Фильтровать</button>
-      <button type="button" className="ghost-button" onClick={onReset}>Сбросить</button>
+      <label>
+        {t.start}
+        <input
+          type="datetime-local"
+          value={filters.startFrom ?? ''}
+          onChange={(event) => onChange({ ...filters, startFrom: event.target.value })}
+        />
+      </label>
+      <label>
+        {t.end}
+        <input
+          type="datetime-local"
+          value={filters.startTo ?? ''}
+          onChange={(event) => onChange({ ...filters, startTo: event.target.value })}
+        />
+      </label>
+      <button type="submit">{t.filter}</button>
+      <button type="button" className="ghost-button" onClick={onReset}>{t.reset}</button>
     </form>
   );
 }
 
 function PitchCard({
+  t,
+  dictionary,
   pitch,
   bookings,
   equipment,
   onEdit,
   onDelete,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   pitch: Pitch;
   bookings: Booking[];
   equipment: EquipmentOffer[];
@@ -704,21 +1015,23 @@ function PitchCard({
   return (
     <article className="catalog-card">
       <GradientCover title={pitch.name} seed={pitch.id} />
-      <div className="muted">{pitchTypeLabels[pitch.type]}</div>
+      <div className="muted">{dictionary.pitchTypes[pitch.type]}</div>
       <h3>{pitch.name}</h3>
-      <p>{pitch.district} • метро {pitch.metro}</p>
+      <p>{pitch.district} • {t.metro} {pitch.metro}</p>
       <div className="price-line">
         <CircleDollarSign size={16} />
-        {formatMoney(pitch.pricePerHour)} BYN/час
+        {formatMoney(pitch.pricePerHour)} {t.priceHour}
       </div>
-      <RelationLine label="Брони" value={bookings.length ? bookings.map((booking) => `#${booking.id} ${booking.status}`).join(', ') : 'нет'} />
-      <RelationLine label="Инвентарь" value={equipment.length ? equipment.map((offer) => equipmentLabels[offer.itemType]).join(', ') : 'нет'} />
-      <CardActions onEdit={onEdit} onDelete={onDelete} />
+      <RelationLine label={t.bookings} value={bookings.length ? bookings.map((booking) => `#${booking.id} ${dictionary.statuses[booking.status]}`).join(', ') : t.noBookings} />
+      <RelationLine label={t.inventory} value={equipment.length ? equipment.map((offer) => dictionary.equipment[offer.itemType]).join(', ') : t.noGear} />
+      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
 
 function BookingCard({
+  t,
+  dictionary,
   booking,
   pitch,
   organizer,
@@ -726,6 +1039,8 @@ function BookingCard({
   onEdit,
   onDelete,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   booking: Booking;
   pitch?: Pitch;
   organizer?: User;
@@ -735,18 +1050,20 @@ function BookingCard({
 }) {
   return (
     <article className="catalog-card text-card">
-      <StatusBadge status={booking.status} />
-      <h3>Бронь #{booking.id}</h3>
-      <p>{pitch?.name ?? `Площадка #${booking.pitchId}`}</p>
-      <RelationLine label="Организатор" value={organizer?.name ?? `User #${booking.organizerId}`} />
-      <RelationLine label="Время" value={`${formatDate(booking.startAt)} → ${formatDate(booking.endAt)}`} />
-      <RelationLine label="OpenGame" value={openGame ? `Игра #${openGame.id}, ${openGame.participantIds.length} участников` : 'не создана'} />
-      <CardActions onEdit={onEdit} onDelete={onDelete} />
+      <StatusBadge status={booking.status} dictionary={dictionary} />
+      <h3>{t.booking} #{booking.id}</h3>
+      <p>{pitch?.name ?? `${t.pitch} #${booking.pitchId}`}</p>
+      <RelationLine label={t.organizer} value={organizer?.name ?? `${t.player} #${booking.organizerId}`} />
+      <RelationLine label={t.time} value={`${formatDate(booking.startAt)} → ${formatDate(booking.endAt)}`} />
+      <RelationLine label={t.match} value={openGame ? `${t.game} #${openGame.id}, ${openGame.participantIds.length} ${t.players}` : t.notCreated} />
+      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
 
 function OpenGameCard({
+  t,
+  dictionary,
   game,
   booking,
   pitch,
@@ -755,6 +1072,8 @@ function OpenGameCard({
   onEdit,
   onDelete,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   game: OpenGame;
   booking?: Booking;
   pitch?: Pitch;
@@ -765,27 +1084,31 @@ function OpenGameCard({
 }) {
   return (
     <article className="catalog-card text-card">
-      <StatusBadge status={game.status} />
-      <h3>Открытая игра #{game.id}</h3>
-      <p>{pitch?.name ?? `Бронь #${game.bookingId}`} • {booking ? formatDate(booking.startAt) : 'время уточняется'}</p>
-      <RelationLine label="Организатор" value={organizer?.name ?? `User #${game.organizerId}`} />
-      <RelationLine label="Навык" value={`${game.targetSkillMin}–${game.targetSkillMax}`} />
-      <RelationLine label="Лимит" value={`${participants.length}/${game.maxPlayers} игроков`} />
+      <StatusBadge status={game.status} dictionary={dictionary} />
+      <h3>{t.game} #{game.id}</h3>
+      <p>{pitch?.name ?? `${t.booking} #${game.bookingId}`} • {booking ? formatDate(booking.startAt) : t.time}</p>
+      <RelationLine label={t.organizer} value={organizer?.name ?? `${t.player} #${game.organizerId}`} />
+      <RelationLine label={t.skill} value={`${game.targetSkillMin}–${game.targetSkillMax}`} />
+      <RelationLine label={t.limit} value={`${participants.length}/${game.maxPlayers} ${t.players}`} />
       <div className="chip-row">
-        {participants.length ? participants.map((user) => <span key={user.id}>{user.name}</span>) : <span>Участников пока нет</span>}
+        {participants.length ? participants.map((user) => <span key={user.id}>{user.name}</span>) : <span>{t.noParticipants}</span>}
       </div>
-      <CardActions onEdit={onEdit} onDelete={onDelete} />
+      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
 
 function UserCard({
+  t,
+  dictionary,
   user,
   bookings,
   openGames,
   onEdit,
   onDelete,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   user: User;
   bookings: Booking[];
   openGames: OpenGame[];
@@ -796,20 +1119,24 @@ function UserCard({
     <article className="catalog-card text-card">
       <GradientCover title={user.name} seed={user.id + 30} compact />
       <h3>{user.name}</h3>
-      <p>{roleLabels[user.role]} • рейтинг {user.rating}</p>
-      <RelationLine label="Организует" value={`${bookings.length} бронирований`} />
-      <RelationLine label="Игры" value={`${openGames.length} связанных open games`} />
-      <CardActions onEdit={onEdit} onDelete={onDelete} />
+      <p>{dictionary.roles[user.role]} • {t.rating} {user.rating}</p>
+      <RelationLine label={t.organizes} value={`${bookings.length} ${t.bookings.toLowerCase()}`} />
+      <RelationLine label={t.games} value={`${openGames.length} ${t.games.toLowerCase()}`} />
+      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
 
 function EquipmentCard({
+  t,
+  dictionary,
   offer,
   pitch,
   onEdit,
   onDelete,
 }: {
+  t: UiText;
+  dictionary: Dictionary;
   offer: EquipmentOffer;
   pitch?: Pitch;
   onEdit: () => void;
@@ -818,11 +1145,11 @@ function EquipmentCard({
   return (
     <article className="catalog-card text-card">
       <Dumbbell className="entity-icon" />
-      <h3>{equipmentLabels[offer.itemType]}</h3>
-      <p>{pitch?.name ?? `Площадка #${offer.pitchId}`}</p>
-      <RelationLine label="Остаток" value={`${offer.stockTotal} шт.`} />
-      <RelationLine label="Цена" value={`${formatMoney(offer.rentFixedPrice)} BYN`} />
-      <CardActions onEdit={onEdit} onDelete={onDelete} />
+      <h3>{dictionary.equipment[offer.itemType]}</h3>
+      <p>{pitch?.name ?? `${t.pitch} #${offer.pitchId}`}</p>
+      <RelationLine label={t.stock} value={`${offer.stockTotal} ${t.items}`} />
+      <RelationLine label={t.price} value={`${formatMoney(offer.rentFixedPrice)} BYN`} />
+      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
@@ -832,6 +1159,8 @@ function EntityModal({
   pitches,
   bookings,
   users,
+  t,
+  dictionary,
   onChange,
   onClose,
   onSubmit,
@@ -840,6 +1169,8 @@ function EntityModal({
   pitches: Pitch[];
   bookings: Booking[];
   users: User[];
+  t: UiText;
+  dictionary: Dictionary;
   onChange: (name: string, value: FormValue) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent) => void;
@@ -849,10 +1180,10 @@ function EntityModal({
       <form className="modal-card" onSubmit={onSubmit}>
         <div className="modal-head">
           <div>
-            <span className="eyebrow">{modal.mode === 'create' ? 'Создание' : 'Редактирование'}</span>
-            <h2>{modalTitle(modal.kind)}</h2>
+            <span className="eyebrow">{modal.mode === 'create' ? t.createMode : t.editMode}</span>
+            <h2>{modalTitle(modal.kind, t)}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t.close}>
             <X size={18} />
           </button>
         </div>
@@ -860,34 +1191,34 @@ function EntityModal({
         <div className="form-grid">
           {modal.kind === 'pitch' && (
             <>
-              <TextField label="Название" name="name" value={fieldValue(modal.form.name)} onChange={onChange} />
-              <SelectField label="Тип" name="type" value={fieldValue(modal.form.type)} options={pitchTypes.map((type) => [type, pitchTypeLabels[type]])} onChange={onChange} />
-              <TextField label="Район" name="district" value={fieldValue(modal.form.district)} onChange={onChange} />
-              <TextField label="Метро" name="metro" value={fieldValue(modal.form.metro)} onChange={onChange} />
-              <TextField label="Цена за час" name="pricePerHour" type="number" step="0.01" value={fieldValue(modal.form.pricePerHour)} onChange={onChange} />
+              <TextField label={t.name} name="name" value={fieldValue(modal.form.name)} onChange={onChange} />
+              <SelectField label={t.type} name="type" value={fieldValue(modal.form.type)} options={pitchTypes.map((type) => [type, dictionary.pitchTypes[type]])} onChange={onChange} />
+              <TextField label={t.district} name="district" value={fieldValue(modal.form.district)} onChange={onChange} />
+              <TextField label={t.metro} name="metro" value={fieldValue(modal.form.metro)} onChange={onChange} />
+              <MoneyField label={t.price} name="pricePerHour" value={fieldValue(modal.form.pricePerHour)} onChange={onChange} />
             </>
           )}
 
           {modal.kind === 'booking' && (
             <>
-              <SelectField label="Площадка" name="pitchId" value={fieldValue(modal.form.pitchId)} options={pitches.map((pitch) => [String(pitch.id), pitch.name])} onChange={onChange} />
-              <SelectField label="Организатор" name="organizerId" value={fieldValue(modal.form.organizerId)} options={users.map((user) => [String(user.id), user.name])} onChange={onChange} />
-              <TextField label="Начало" name="startAt" type="datetime-local" value={fieldValue(modal.form.startAt)} onChange={onChange} />
-              <TextField label="Конец" name="endAt" type="datetime-local" value={fieldValue(modal.form.endAt)} onChange={onChange} />
-              <SelectField label="Статус" name="status" value={fieldValue(modal.form.status)} options={bookingStatuses.map((status) => [status, statusLabels[status]])} onChange={onChange} />
+              <SelectField label={t.pitch} name="pitchId" value={fieldValue(modal.form.pitchId)} options={pitches.map((pitch) => [String(pitch.id), pitch.name])} onChange={onChange} />
+              <SelectField label={t.organizer} name="organizerId" value={fieldValue(modal.form.organizerId)} options={users.map((user) => [String(user.id), user.name])} onChange={onChange} />
+              <TextField label={t.start} name="startAt" type="datetime-local" value={fieldValue(modal.form.startAt)} onChange={onChange} />
+              <TextField label={t.end} name="endAt" type="datetime-local" value={fieldValue(modal.form.endAt)} onChange={onChange} />
+              <SelectField label={t.status} name="status" value={fieldValue(modal.form.status)} options={bookingStatuses.map((status) => [status, dictionary.statuses[status]])} onChange={onChange} />
             </>
           )}
 
           {modal.kind === 'openGame' && (
             <>
-              <SelectField label="Бронь" name="bookingId" value={fieldValue(modal.form.bookingId)} options={bookings.map((booking) => [String(booking.id), `#${booking.id} ${booking.startAt}`])} onChange={onChange} />
-              <SelectField label="Организатор" name="organizerId" value={fieldValue(modal.form.organizerId)} options={users.map((user) => [String(user.id), user.name])} onChange={onChange} />
-              <TextField label="Навык от" name="targetSkillMin" type="number" min="0" max="100" value={fieldValue(modal.form.targetSkillMin)} onChange={onChange} />
-              <TextField label="Навык до" name="targetSkillMax" type="number" min="0" max="100" value={fieldValue(modal.form.targetSkillMax)} onChange={onChange} />
-              <TextField label="Максимум игроков" name="maxPlayers" type="number" min="2" max="50" value={fieldValue(modal.form.maxPlayers)} onChange={onChange} />
-              <SelectField label="Статус" name="status" value={fieldValue(modal.form.status)} options={openGameStatuses.map((status) => [status, statusLabels[status]])} onChange={onChange} />
+              <SelectField label={t.booking} name="bookingId" value={fieldValue(modal.form.bookingId)} options={bookings.map((booking) => [String(booking.id), `#${booking.id} ${booking.startAt}`])} onChange={onChange} />
+              <SelectField label={t.organizer} name="organizerId" value={fieldValue(modal.form.organizerId)} options={users.map((user) => [String(user.id), user.name])} onChange={onChange} />
+              <TextField label={t.skillFrom} name="targetSkillMin" type="number" min="0" max="100" value={fieldValue(modal.form.targetSkillMin)} onChange={onChange} />
+              <TextField label={t.skillTo} name="targetSkillMax" type="number" min="0" max="100" value={fieldValue(modal.form.targetSkillMax)} onChange={onChange} />
+              <TextField label={t.maxPlayers} name="maxPlayers" type="number" min="2" max="50" value={fieldValue(modal.form.maxPlayers)} onChange={onChange} />
+              <SelectField label={t.status} name="status" value={fieldValue(modal.form.status)} options={openGameStatuses.map((status) => [status, dictionary.statuses[status]])} onChange={onChange} />
               <label className="field full-width">
-                Участники
+                {t.participants}
                 <select
                   multiple
                   value={arrayValue(modal.form.participantIds)}
@@ -903,25 +1234,25 @@ function EntityModal({
 
           {modal.kind === 'user' && (
             <>
-              <TextField label="Имя" name="name" value={fieldValue(modal.form.name)} onChange={onChange} />
-              <TextField label="Рейтинг" name="rating" type="number" min="0" max="100" value={fieldValue(modal.form.rating)} onChange={onChange} />
-              <SelectField label="Роль" name="role" value={fieldValue(modal.form.role)} options={userRoles.map((role) => [role, roleLabels[role]])} onChange={onChange} />
+              <TextField label={t.name} name="name" value={fieldValue(modal.form.name)} onChange={onChange} />
+              <TextField label={t.rating} name="rating" type="number" min="0" max="100" value={fieldValue(modal.form.rating)} onChange={onChange} />
+              <SelectField label={t.role} name="role" value={fieldValue(modal.form.role)} options={userRoles.map((role) => [role, dictionary.roles[role]])} onChange={onChange} />
             </>
           )}
 
           {modal.kind === 'equipment' && (
             <>
-              <SelectField label="Площадка" name="pitchId" value={fieldValue(modal.form.pitchId)} options={pitches.map((pitch) => [String(pitch.id), pitch.name])} onChange={onChange} />
-              <SelectField label="Тип" name="itemType" value={fieldValue(modal.form.itemType)} options={equipmentTypes.map((type) => [type, equipmentLabels[type]])} onChange={onChange} />
-              <TextField label="Количество" name="stockTotal" type="number" min="0" value={fieldValue(modal.form.stockTotal)} onChange={onChange} />
-              <TextField label="Цена аренды" name="rentFixedPrice" type="number" step="0.01" value={fieldValue(modal.form.rentFixedPrice)} onChange={onChange} />
+              <SelectField label={t.pitch} name="pitchId" value={fieldValue(modal.form.pitchId)} options={pitches.map((pitch) => [String(pitch.id), pitch.name])} onChange={onChange} />
+              <SelectField label={t.type} name="itemType" value={fieldValue(modal.form.itemType)} options={equipmentTypes.map((type) => [type, dictionary.equipment[type]])} onChange={onChange} />
+              <TextField label={t.quantity} name="stockTotal" type="number" min="0" value={fieldValue(modal.form.stockTotal)} onChange={onChange} />
+              <MoneyField label={t.rentPrice} name="rentFixedPrice" value={fieldValue(modal.form.rentFixedPrice)} onChange={onChange} />
             </>
           )}
         </div>
 
         <div className="modal-actions">
-          <button type="button" className="ghost-button" onClick={onClose}>Отмена</button>
-          <button type="submit">Сохранить</button>
+          <button type="button" className="ghost-button" onClick={onClose}>{t.cancel}</button>
+          <button type="submit">{t.save}</button>
         </div>
       </form>
     </div>
@@ -948,6 +1279,45 @@ function TextField({
     <label className="field">
       {label}
       <input {...inputProps} type={type} value={value} onChange={(event) => onChange(name, event.target.value)} required />
+    </label>
+  );
+}
+
+function MoneyField({
+  label,
+  name,
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (name: string, value: string) => void;
+}) {
+  const numericValue = Number(value || 0);
+  const updateValue = (nextValue: number) => {
+    onChange(name, String(Math.max(1, Math.round(nextValue))));
+  };
+
+  return (
+    <label className="field money-field">
+      {label}
+      <div className="money-control">
+        <button type="button" className="stepper-button" onClick={() => updateValue(numericValue - 1)}>
+          −
+        </button>
+        <input
+          type="number"
+          min="1"
+          step="1"
+          value={value}
+          onChange={(event) => updateValue(Number(event.target.value))}
+          required
+        />
+        <button type="button" className="stepper-button" onClick={() => updateValue(numericValue + 1)}>
+          +
+        </button>
+      </div>
     </label>
   );
 }
@@ -981,13 +1351,13 @@ function CardGrid({ children }: { children: ReactNode }) {
   return <div className="card-grid">{children}</div>;
 }
 
-function CardActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function CardActions({ t, onEdit, onDelete }: { t: UiText; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="card-actions">
-      <button type="button" className="icon-button" onClick={onEdit} aria-label="Редактировать">
+      <button type="button" className="icon-button" onClick={onEdit} aria-label={t.edit}>
         <Edit3 size={16} />
       </button>
-      <button type="button" className="icon-button danger" onClick={onDelete} aria-label="Удалить">
+      <button type="button" className="icon-button danger" onClick={onDelete} aria-label={t.delete}>
         <Trash2 size={16} />
       </button>
     </div>
@@ -1004,7 +1374,7 @@ function GradientCover({ title, seed, compact = false }: { title: string; seed: 
     .toUpperCase();
   return (
     <div className={compact ? `cover compact cover-${seed % 6}` : `cover cover-${seed % 6}`}>
-      {initials || 'FM'}
+      {initials || 'ПЛ'}
     </div>
   );
 }
@@ -1038,21 +1408,21 @@ function RelationLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MiniBooking({ booking, pitch, user }: { booking: Booking; pitch?: Pitch; user?: User }) {
+function MiniBooking({ t, dictionary, booking, pitch, user }: { t: UiText; dictionary: Dictionary; booking: Booking; pitch?: Pitch; user?: User }) {
   return (
     <div className="mini-booking">
       <CalendarClock size={18} />
       <div>
-        <strong>{pitch?.name ?? `Площадка #${booking.pitchId}`}</strong>
-        <span>{user?.name ?? `User #${booking.organizerId}`} • {formatDate(booking.startAt)}</span>
+        <strong>{pitch?.name ?? `${t.pitch} #${booking.pitchId}`}</strong>
+        <span>{user?.name ?? `${t.player} #${booking.organizerId}`} • {formatDate(booking.startAt)}</span>
       </div>
-      <StatusBadge status={booking.status} />
+      <StatusBadge status={booking.status} dictionary={dictionary} />
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  return <span className={`status-badge status-${status.toLowerCase()}`}>{statusLabels[status as keyof typeof statusLabels] ?? status}</span>;
+function StatusBadge({ status, dictionary }: { status: string; dictionary: Dictionary }) {
+  return <span className={`status-badge status-${status.toLowerCase()}`}>{dictionary.statuses[status as keyof typeof dictionary.statuses] ?? status}</span>;
 }
 
 function matchesSearch(values: Array<string | undefined>, search: string) {
@@ -1060,6 +1430,40 @@ function matchesSearch(values: Array<string | undefined>, search: string) {
     return true;
   }
   return values.some((value) => value?.toLowerCase().includes(search));
+}
+
+function normalizePitchForDisplay(pitch: Pitch): Pitch {
+  if (!isGeneratedPitchName(pitch.name)) {
+    return pitch;
+  }
+  const cleanName = cleanPitchNames[(pitch.id - 1) % cleanPitchNames.length];
+  return {
+    ...pitch,
+    name: cleanName.name,
+    district: cleanName.district,
+    metro: cleanName.metro,
+  };
+}
+
+function normalizeUserForDisplay(user: User): User {
+  if (!isGeneratedUserName(user.name)) {
+    return user;
+  }
+  return {
+    ...user,
+    name: cleanUserNames[(user.id - 1) % cleanUserNames.length],
+  };
+}
+
+function isGeneratedPitchName(name: string) {
+  return /^Tx Pitch /.test(name)
+    || /^Bulk Tx Pitch /.test(name)
+    || /^Cascade Demo Pitch/.test(name)
+    || /\d{6,}/.test(name);
+}
+
+function isGeneratedUserName(name: string) {
+  return /^Tx Organizer /.test(name) || /\d{6,}/.test(name);
 }
 
 function createDefaultForm(kind: EntityKind, pitches: Pitch[], bookings: Booking[], users: User[]): FormState {
@@ -1071,7 +1475,7 @@ function createDefaultForm(kind: EntityKind, pitches: Pitch[], bookings: Booking
   const firstUserId = String(users[0]?.id ?? '');
 
   if (kind === 'pitch') {
-    return { name: 'Новая арена', type: 'FIVE_TURF', district: 'Центральный', metro: 'Немига', pricePerHour: '120.00' };
+    return { name: 'Новая арена', type: 'FIVE_TURF', district: 'Центральный', metro: 'Немига', pricePerHour: '120' };
   }
   if (kind === 'booking') {
     return {
@@ -1096,7 +1500,7 @@ function createDefaultForm(kind: EntityKind, pitches: Pitch[], bookings: Booking
   if (kind === 'user') {
     return { name: 'Новый игрок', rating: '70', role: 'PLAYER' };
   }
-  return { pitchId: firstPitchId, itemType: 'BALL', stockTotal: '8', rentFixedPrice: '10.00' };
+  return { pitchId: firstPitchId, itemType: 'BALL', stockTotal: '8', rentFixedPrice: '10' };
 }
 
 function createEditForm(kind: EntityKind, item: Pitch | Booking | OpenGame | User | EquipmentOffer): FormState {
@@ -1107,7 +1511,7 @@ function createEditForm(kind: EntityKind, item: Pitch | Booking | OpenGame | Use
       type: pitch.type,
       district: pitch.district,
       metro: pitch.metro,
-      pricePerHour: String(pitch.pricePerHour),
+      pricePerHour: toWholeMoney(pitch.pricePerHour),
     };
   }
   if (kind === 'booking') {
@@ -1141,7 +1545,7 @@ function createEditForm(kind: EntityKind, item: Pitch | Booking | OpenGame | Use
     pitchId: String(offer.pitchId),
     itemType: offer.itemType,
     stockTotal: String(offer.stockTotal),
-    rentFixedPrice: String(offer.rentFixedPrice),
+    rentFixedPrice: toWholeMoney(offer.rentFixedPrice),
   };
 }
 
@@ -1191,20 +1595,20 @@ function createPayload(modal: ModalState): Record<string, unknown> {
   };
 }
 
-function modalTitle(kind: EntityKind) {
+function modalTitle(kind: EntityKind, t: UiText) {
   if (kind === 'pitch') {
-    return 'Площадка';
+    return t.pitch;
   }
   if (kind === 'booking') {
-    return 'Бронирование';
+    return t.booking;
   }
   if (kind === 'openGame') {
-    return 'Открытая игра';
+    return t.game;
   }
   if (kind === 'user') {
-    return 'Пользователь';
+    return t.player;
   }
-  return 'Инвентарь';
+  return t.inventory;
 }
 
 function fieldValue(value: FormValue | undefined) {
@@ -1230,6 +1634,10 @@ function formatDate(value: string) {
 
 function formatMoney(value: number) {
   return Number(value).toFixed(2);
+}
+
+function toWholeMoney(value: number) {
+  return String(Math.round(Number(value)));
 }
 
 export default App;

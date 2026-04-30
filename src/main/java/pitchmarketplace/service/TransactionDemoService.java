@@ -78,13 +78,11 @@ public class TransactionDemoService {
     }
 
     private void saveRelatedEntities() {
-        String suffix = String.valueOf(System.nanoTime());
-
-        User organizer = userRepository.save(new User(null, "Tx Organizer " + suffix, 60, UserRole.PLAYER));
+        User organizer = userRepository.save(new User(null, "Игрок Немига", 60, UserRole.PLAYER));
 
         Pitch pitch = new Pitch(
                 null,
-                "Tx Pitch " + suffix,
+                "Арена Немига",
                 PitchType.FIVE_FUTSAL,
                 "Центральный",
                 "Немига",
