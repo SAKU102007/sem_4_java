@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import type { FormEvent, InputHTMLAttributes, ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type {
   Booking,
@@ -332,14 +332,24 @@ function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [equipmentOffers, setEquipmentOffers] = useState<EquipmentOffer[]>([]);
   const [pitchFilterResult, setPitchFilterResult] = useState<Pitch[] | null>(null);
-  const [bookingSearchResult, setBookingSearchResult] = useState<BookingSearchResponse | null>(null);
-  const [bookingFilters, setBookingFilters] = useState<BookingSearchFilters>(emptyBookingFilters);
   const [pitchDistrict, setPitchDistrict] = useState('');
-  const [catalogSearch, setCatalogSearch] = useState('');
+  const [dashboardSearchInput, setDashboardSearchInput] = useState('');
+  const [dashboardSearch, setDashboardSearch] = useState('');
+  const [dashboardSearching, setDashboardSearching] = useState(false);
   const [language, setLanguage] = useState<Language>('ru');
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toast, setToast] = useState('');
+  const [pageByView, setPageByView] = useState<Record<ViewKey, number>>({
+    dashboard: 0,
+    pitches: 0,
+    bookings: 0,
+    openGames: 0,
+    users: 0,
+    equipment: 0,
+  });
+  const pageSize = 12;
+  const dashboardResultsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void loadAll();
@@ -348,35 +358,42 @@ function App() {
   const pitchMap = new Map(pitches.map((pitch) => [pitch.id, pitch]));
   const userMap = new Map(users.map((user) => [user.id, user]));
   const bookingMap = new Map(bookings.map((booking) => [booking.id, booking]));
-  const normalizedSearch = catalogSearch.trim().toLowerCase();
-  const displayedBookings = bookingSearchResult?.content ?? bookings;
+  const normalizedDashboardSearch = dashboardSearch.trim().toLowerCase();
   const displayedPitches = pitchFilterResult ?? pitches;
   const dictionary = dictionaries[language];
   const t = ui[language];
+  const districtOptions = Array.from(new Set(pitches.map((pitch) => pitch.district).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, 'ru'),
+  );
 
-  const searchedPitches = pitches.filter((pitch) => {
-    return matchesSearch([pitch.name, pitch.district, pitch.metro, pitch.type], normalizedSearch);
-  });
-  const filteredPitches = displayedPitches.filter((pitch) => {
-    return matchesSearch([pitch.name, pitch.district, pitch.metro, pitch.type], normalizedSearch);
-  });
-  const filteredBookings = displayedBookings.filter((booking) => {
+  const searchedPitches = pitches.filter((pitch) => matchesSearch([pitch.name, pitch.district, pitch.metro, pitch.type], normalizedDashboardSearch));
+  const searchedBookings = bookings.filter((booking) => {
     const pitch = pitchMap.get(booking.pitchId);
     const organizer = userMap.get(booking.organizerId);
-    return matchesSearch([pitch?.name, organizer?.name, booking.status, booking.startAt], normalizedSearch);
+    return matchesSearch([pitch?.name, organizer?.name, booking.status, booking.startAt], normalizedDashboardSearch);
   });
-  const filteredOpenGames = openGames.filter((game) => {
+  const searchedOpenGames = openGames.filter((game) => {
     const organizer = userMap.get(game.organizerId);
     const participantNames = game.participantIds.map((id) => userMap.get(id)?.name).join(' ');
-    return matchesSearch([organizer?.name, participantNames, game.status], normalizedSearch);
+    return matchesSearch([organizer?.name, participantNames, game.status], normalizedDashboardSearch);
   });
-  const filteredUsers = users.filter((user) => {
-    return matchesSearch([user.name, user.role, String(user.rating)], normalizedSearch);
-  });
-  const filteredEquipment = equipmentOffers.filter((offer) => {
+  const searchedUsers = users.filter((user) => matchesSearch([user.name, user.role, String(user.rating)], normalizedDashboardSearch));
+  const searchedEquipment = equipmentOffers.filter((offer) => {
     const pitch = pitchMap.get(offer.pitchId);
-    return matchesSearch([offer.itemType, pitch?.name, pitch?.district], normalizedSearch);
+    return matchesSearch([offer.itemType, pitch?.name, pitch?.district], normalizedDashboardSearch);
   });
+
+  const filteredPitches = displayedPitches;
+  const filteredBookings = bookings;
+  const filteredOpenGames = openGames;
+  const filteredUsers = users;
+  const filteredEquipment = equipmentOffers;
+
+  const pagedPitches = paginate(filteredPitches, pageByView.pitches, pageSize);
+  const pagedBookings = paginate(filteredBookings, pageByView.bookings, pageSize);
+  const pagedOpenGames = paginate(filteredOpenGames, pageByView.openGames, pageSize);
+  const pagedUsers = paginate(filteredUsers, pageByView.users, pageSize);
+  const pagedEquipment = paginate(filteredEquipment, pageByView.equipment, pageSize);
 
   async function loadAll() {
     setLoading(true);
@@ -394,13 +411,29 @@ function App() {
       setUsers(loadedUsers.map(normalizeUserForDisplay));
       setEquipmentOffers(loadedEquipment);
       setPitchFilterResult(null);
-      setBookingSearchResult(null);
       setPitchDistrict('');
+      setPageByView({
+        dashboard: 0,
+        pitches: 0,
+        bookings: 0,
+        openGames: 0,
+        users: 0,
+        equipment: 0,
+      });
     } catch (error) {
       showError(error);
     } finally {
       setLoading(false);
     }
+  }
+
+  function applyDashboardSearch() {
+    setDashboardSearching(true);
+    setDashboardSearch(dashboardSearchInput);
+    requestAnimationFrame(() => {
+      dashboardResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    window.setTimeout(() => setDashboardSearching(false), 450);
   }
 
   async function applyPitchFilter() {
@@ -420,33 +453,24 @@ function App() {
     setPitchFilterResult(null);
   }
 
-  async function applyBookingFilters(event: FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    try {
-      setBookingSearchResult(await api.searchBookings(bookingFilters));
-      setActiveView('bookings');
-    } catch (error) {
-      showError(error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function clearBookingFilters() {
-    setBookingFilters(emptyBookingFilters);
-    setBookingSearchResult(null);
-  }
-
   function showError(error: unknown) {
     setToast(error instanceof Error ? error.message : t.genericError);
   }
 
-  function openCreate(kind: EntityKind) {
+  function openCreate(kind: EntityKind, formOverrides: Partial<FormState> = {}) {
+    const form = Object.entries(formOverrides).reduce<FormState>(
+      (accumulator, [key, value]) => {
+        if (value !== undefined) {
+          accumulator[key] = value;
+        }
+        return accumulator;
+      },
+      { ...createDefaultForm(kind, pitches, bookings, users) },
+    );
     setModal({
       kind,
       mode: 'create',
-      form: createDefaultForm(kind, pitches, bookings, users),
+      form,
     });
   }
 
@@ -548,37 +572,47 @@ function App() {
           users: users.length,
           equipment: equipmentOffers.length,
         }}
-        onNavigate={setActiveView}
+        onNavigate={(view) => {
+          setActiveView(view);
+          setPageByView((current) => ({ ...current, [view]: 0 }));
+        }}
         onLanguageChange={setLanguage}
+        onRefresh={loadAll}
       />
 
       <div className="page-shell">
-        <Hero
-          search={catalogSearch}
-          t={t}
-          onSearch={setCatalogSearch}
-          onRefresh={loadAll}
-        />
+        {activeView === 'dashboard' && (
+          <Hero
+            search={dashboardSearchInput}
+            searching={dashboardSearching}
+            t={t}
+            onSearch={setDashboardSearchInput}
+            onSearchCommit={applyDashboardSearch}
+          />
+        )}
 
         <main className="workspace">
           {loading && <div className="loading-banner">{t.loading}</div>}
 
           {activeView === 'dashboard' && (
-            <Dashboard
-              t={t}
-              dictionary={dictionary}
-              pitches={searchedPitches}
-              bookings={bookings}
-              users={users}
-              openGames={openGames}
-              equipmentOffers={equipmentOffers}
-              pitchMap={pitchMap}
-              userMap={userMap}
-              onOpenPitches={() => setActiveView('pitches')}
-              onCreatePitch={() => openCreate('pitch')}
-              onEditPitch={(pitch) => openEdit('pitch', pitch)}
-              onDeletePitch={(id) => void deleteEntity('pitch', id)}
-            />
+            <>
+              <div ref={dashboardResultsRef} />
+              <Dashboard
+                t={t}
+                dictionary={dictionary}
+                pitches={searchedPitches}
+                bookings={searchedBookings}
+                users={searchedUsers}
+                openGames={searchedOpenGames}
+                equipmentOffers={searchedEquipment}
+                pitchMap={pitchMap}
+                userMap={userMap}
+                onOpenPitches={() => setActiveView('pitches')}
+                onCreatePitch={() => openCreate('pitch')}
+                onEditPitch={(pitch) => openEdit('pitch', pitch)}
+                onDeletePitch={(id) => void deleteEntity('pitch', id)}
+              />
+            </>
           )}
 
           {activeView === 'pitches' && (
@@ -587,13 +621,22 @@ function App() {
               <div className="filter-strip">
                 <label>
                   {t.district}
-                  <input value={pitchDistrict} onChange={(event) => setPitchDistrict(event.target.value)} placeholder={t.districtPlaceholder} />
+                  <div className="pretty-select">
+                    <select value={pitchDistrict} onChange={(event) => setPitchDistrict(event.target.value)} aria-label={t.district}>
+                      <option value="">{t.all}</option>
+                      {districtOptions.map((district) => (
+                        <option key={district} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </label>
                 <button type="button" onClick={applyPitchFilter}>{t.show}</button>
                 <button type="button" className="ghost-button" onClick={clearPitchFilter}>{t.reset}</button>
               </div>
               <CardGrid>
-                {filteredPitches.map((pitch) => (
+                {pagedPitches.items.map((pitch) => (
                   <PitchCard
                     key={pitch.id}
                     t={t}
@@ -606,27 +649,21 @@ function App() {
                   />
                 ))}
               </CardGrid>
+              <PaginationBar
+                t={t}
+                page={pagedPitches.page}
+                pageSize={pagedPitches.pageSize}
+                total={pagedPitches.total}
+                onPageChange={(page) => setPageByView((current) => ({ ...current, pitches: page }))}
+              />
             </section>
           )}
 
           {activeView === 'bookings' && (
             <section className="section-stack">
               <SectionHeader title={t.sectionBookings} subtitle={t.sectionBookingsSub} addLabel={t.create} onAdd={() => openCreate('booking')} />
-              <BookingFilters
-                t={t}
-                dictionary={dictionary}
-                filters={bookingFilters}
-                onChange={setBookingFilters}
-                onSubmit={applyBookingFilters}
-                onReset={clearBookingFilters}
-              />
-              {bookingSearchResult && (
-                <div className="search-result-note">
-                  {t.found}: {bookingSearchResult.totalElements}. {t.page} {bookingSearchResult.pageNumber + 1} {t.of} {Math.max(bookingSearchResult.totalPages, 1)}.
-                </div>
-              )}
               <CardGrid>
-                {filteredBookings.map((booking) => (
+                {pagedBookings.items.map((booking) => (
                   <BookingCard
                     key={booking.id}
                     t={t}
@@ -634,12 +671,26 @@ function App() {
                     booking={booking}
                     pitch={pitchMap.get(booking.pitchId)}
                     organizer={userMap.get(booking.organizerId)}
-                    openGame={openGames.find((game) => game.bookingId === booking.id)}
                     onEdit={() => openEdit('booking', booking)}
                     onDelete={() => void deleteEntity('booking', booking.id)}
+                    onOpenPitch={() => {
+                      setActiveView('pitches');
+                      setPageByView((current) => ({ ...current, pitches: 0 }));
+                    }}
+                    onOpenUser={() => {
+                      setActiveView('users');
+                      setPageByView((current) => ({ ...current, users: 0 }));
+                    }}
                   />
                 ))}
               </CardGrid>
+              <PaginationBar
+                t={t}
+                page={pagedBookings.page}
+                pageSize={pagedBookings.pageSize}
+                total={pagedBookings.total}
+                onPageChange={(page) => setPageByView((current) => ({ ...current, bookings: page }))}
+              />
             </section>
           )}
 
@@ -647,7 +698,7 @@ function App() {
             <section className="section-stack">
               <SectionHeader title={t.sectionGames} subtitle={t.sectionGamesSub} addLabel={t.create} onAdd={() => openCreate('openGame')} />
               <CardGrid>
-                {filteredOpenGames.map((game) => (
+                {pagedOpenGames.items.map((game) => (
                   <OpenGameCard
                     key={game.id}
                     t={t}
@@ -659,9 +710,28 @@ function App() {
                     participants={game.participantIds.map((id) => userMap.get(id)).filter(Boolean) as User[]}
                     onEdit={() => openEdit('openGame', game)}
                     onDelete={() => void deleteEntity('openGame', game.id)}
+                    onOpenBooking={() => {
+                      setActiveView('bookings');
+                      setPageByView((current) => ({ ...current, bookings: 0 }));
+                    }}
+                    onOpenPitch={() => {
+                      setActiveView('pitches');
+                      setPageByView((current) => ({ ...current, pitches: 0 }));
+                    }}
+                    onOpenUser={() => {
+                      setActiveView('users');
+                      setPageByView((current) => ({ ...current, users: 0 }));
+                    }}
                   />
                 ))}
               </CardGrid>
+              <PaginationBar
+                t={t}
+                page={pagedOpenGames.page}
+                pageSize={pagedOpenGames.pageSize}
+                total={pagedOpenGames.total}
+                onPageChange={(page) => setPageByView((current) => ({ ...current, openGames: page }))}
+              />
             </section>
           )}
 
@@ -669,7 +739,7 @@ function App() {
             <section className="section-stack">
               <SectionHeader title={t.sectionUsers} subtitle={t.sectionUsersSub} addLabel={t.create} onAdd={() => openCreate('user')} />
               <CardGrid>
-                {filteredUsers.map((user) => (
+                {pagedUsers.items.map((user) => (
                   <UserCard
                     key={user.id}
                     t={t}
@@ -682,6 +752,13 @@ function App() {
                   />
                 ))}
               </CardGrid>
+              <PaginationBar
+                t={t}
+                page={pagedUsers.page}
+                pageSize={pagedUsers.pageSize}
+                total={pagedUsers.total}
+                onPageChange={(page) => setPageByView((current) => ({ ...current, users: page }))}
+              />
             </section>
           )}
 
@@ -689,7 +766,7 @@ function App() {
             <section className="section-stack">
               <SectionHeader title={t.sectionEquipment} subtitle={t.sectionEquipmentSub} addLabel={t.create} onAdd={() => openCreate('equipment')} />
               <CardGrid>
-                {filteredEquipment.map((offer) => (
+                {pagedEquipment.items.map((offer) => (
                   <EquipmentCard
                     key={offer.id}
                     t={t}
@@ -701,6 +778,13 @@ function App() {
                   />
                 ))}
               </CardGrid>
+              <PaginationBar
+                t={t}
+                page={pagedEquipment.page}
+                pageSize={pagedEquipment.pageSize}
+                total={pagedEquipment.total}
+                onPageChange={(page) => setPageByView((current) => ({ ...current, equipment: page }))}
+              />
             </section>
           )}
         </main>
@@ -740,6 +824,7 @@ function TopBar({
   counts,
   onNavigate,
   onLanguageChange,
+  onRefresh,
 }: {
   activeView: ViewKey;
   language: Language;
@@ -748,6 +833,7 @@ function TopBar({
   counts: Record<ViewKey, number>;
   onNavigate: (view: ViewKey) => void;
   onLanguageChange: (language: Language) => void;
+  onRefresh: () => void;
 }) {
   return (
     <header className="topbar">
@@ -757,6 +843,9 @@ function TopBar({
           <span>{t.brandCity}</span>
           <strong>{t.brandName}</strong>
         </div>
+        <button type="button" className="top-action-button refresh-button-inline" onClick={onRefresh} aria-label={t.refresh}>
+          <RefreshCw size={18} />
+        </button>
       </div>
       <nav className="nav-list">
         {dictionary.navItems.map((item) => (
@@ -786,14 +875,16 @@ function TopBar({
 
 function Hero({
   search,
+  searching,
   t,
   onSearch,
-  onRefresh,
+  onSearchCommit,
 }: {
   search: string;
+  searching: boolean;
   t: UiText;
   onSearch: (value: string) => void;
-  onRefresh: () => void;
+  onSearchCommit: () => void;
 }) {
   return (
     <section className="hero-card">
@@ -802,14 +893,20 @@ function Hero({
           <h1>{t.heroTitle}</h1>
           <p>{t.heroSubtitle}</p>
         </div>
-        <button type="button" className="refresh-button" onClick={onRefresh}>
-          <RefreshCw size={18} />
-          {t.refresh}
-        </button>
       </div>
-      <label className="hero-search">
+      <label className={searching ? 'hero-search searching' : 'hero-search'}>
         <Search size={18} />
-        <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder={t.searchPlaceholder} />
+        <input
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              onSearchCommit();
+            }
+          }}
+          placeholder={t.searchPlaceholder}
+        />
+        {searching && <span className="search-spinner" aria-hidden="true" />}
       </label>
     </section>
   );
@@ -1016,8 +1113,16 @@ function PitchCard({
     <article className="catalog-card">
       <GradientCover title={pitch.name} seed={pitch.id} />
       <div className="muted">{dictionary.pitchTypes[pitch.type]}</div>
-      <h3>{pitch.name}</h3>
-      <p>{pitch.district} • {t.metro} {pitch.metro}</p>
+      <h3>
+        <button type="button" className="link-button title-link" onClick={onEdit}>
+          {pitch.name}
+        </button>
+      </h3>
+      <p>
+        <button type="button" className="link-button" onClick={onEdit}>
+          {pitch.district} • {t.metro} {pitch.metro}
+        </button>
+      </p>
       <div className="price-line">
         <CircleDollarSign size={16} />
         {formatMoney(pitch.pricePerHour)} {t.priceHour}
@@ -1035,28 +1140,43 @@ function BookingCard({
   booking,
   pitch,
   organizer,
-  openGame,
   onEdit,
   onDelete,
+  onOpenPitch,
+  onOpenUser,
 }: {
   t: UiText;
   dictionary: Dictionary;
   booking: Booking;
   pitch?: Pitch;
   organizer?: User;
-  openGame?: OpenGame;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenPitch: () => void;
+  onOpenUser: () => void;
 }) {
   return (
     <article className="catalog-card text-card">
       <StatusBadge status={booking.status} dictionary={dictionary} />
-      <h3>{t.booking} #{booking.id}</h3>
-      <p>{pitch?.name ?? `${t.pitch} #${booking.pitchId}`}</p>
-      <RelationLine label={t.organizer} value={organizer?.name ?? `${t.player} #${booking.organizerId}`} />
-      <RelationLine label={t.time} value={`${formatDate(booking.startAt)} → ${formatDate(booking.endAt)}`} />
-      <RelationLine label={t.match} value={openGame ? `${t.game} #${openGame.id}, ${openGame.participantIds.length} ${t.players}` : t.notCreated} />
-      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
+      <h3>
+        <button type="button" className="link-button title-link" onClick={onEdit}>
+          {t.booking} #{booking.id}
+        </button>
+      </h3>
+      <p>
+        <button type="button" className="link-button" onClick={onOpenPitch}>
+          {pitch?.name ?? `${t.pitch} #${booking.pitchId}`}
+        </button>
+      </p>
+      <RelationLine
+        label={t.organizer}
+        value={
+          <button type="button" className="link-button" onClick={onOpenUser}>
+            {organizer?.name ?? `${t.player} #${booking.organizerId}`}
+          </button>
+        }
+      />
+      <RelationLine label={t.time} value={`${new Date(booking.startAt).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})} - ${new Date(booking.endAt).toLocaleString('ru-RU', {hour:'2-digit', minute:'2-digit'})}`} />      <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
 }
@@ -1071,6 +1191,9 @@ function OpenGameCard({
   participants,
   onEdit,
   onDelete,
+  onOpenBooking,
+  onOpenPitch,
+  onOpenUser,
 }: {
   t: UiText;
   dictionary: Dictionary;
@@ -1081,18 +1204,45 @@ function OpenGameCard({
   participants: User[];
   onEdit: () => void;
   onDelete: () => void;
+  onOpenBooking: () => void;
+  onOpenPitch: () => void;
+  onOpenUser: () => void;
 }) {
   return (
     <article className="catalog-card text-card">
       <StatusBadge status={game.status} dictionary={dictionary} />
-      <h3>{t.game} #{game.id}</h3>
-      <p>{pitch?.name ?? `${t.booking} #${game.bookingId}`} • {booking ? formatDate(booking.startAt) : t.time}</p>
-      <RelationLine label={t.organizer} value={organizer?.name ?? `${t.player} #${game.organizerId}`} />
+      <h3>
+        <button type="button" className="link-button title-link" onClick={onEdit}>
+          {t.game} #{game.id}
+        </button>
+      </h3>
+      <p>
+        <button type="button" className="link-button" onClick={onOpenPitch}>
+          {pitch?.name ?? `${t.pitch} #${booking?.pitchId ?? '?'}`}
+        </button>
+        {' • '}
+        <button type="button" className="link-button" onClick={onOpenBooking}>
+          {booking ? formatDate(booking.startAt) : `${t.booking} #${game.bookingId}`}
+        </button>
+      </p>
+      <RelationLine
+        label={t.organizer}
+        value={
+          <button type="button" className="link-button" onClick={onOpenUser}>
+            {organizer?.name ?? `${t.player} #${game.organizerId}`}
+          </button>
+        }
+      />
       <RelationLine label={t.skill} value={`${game.targetSkillMin}–${game.targetSkillMax}`} />
       <RelationLine label={t.limit} value={`${participants.length}/${game.maxPlayers} ${t.players}`} />
-      <div className="chip-row">
-        {participants.length ? participants.map((user) => <span key={user.id}>{user.name}</span>) : <span>{t.noParticipants}</span>}
-      </div>
+      <details className="participants-details">
+        <summary className="participants-summary">
+          {t.participants}: <b>{participants.length}</b>
+        </summary>
+        <div className="chip-row">
+          {participants.length ? participants.map((user) => <span key={user.id}>{user.name}</span>) : <span>{t.noParticipants}</span>}
+        </div>
+      </details>
       <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
     </article>
   );
@@ -1118,8 +1268,16 @@ function UserCard({
   return (
     <article className="catalog-card text-card">
       <GradientCover title={user.name} seed={user.id + 30} compact />
-      <h3>{user.name}</h3>
-      <p>{dictionary.roles[user.role]} • {t.rating} {user.rating}</p>
+      <h3>
+        <button type="button" className="link-button title-link" onClick={onEdit}>
+          {user.name}
+        </button>
+      </h3>
+      <p>
+        <button type="button" className="link-button" onClick={onEdit}>
+          {dictionary.roles[user.role]} • {t.rating} {user.rating}
+        </button>
+      </p>
       <RelationLine label={t.organizes} value={`${bookings.length} ${t.bookings.toLowerCase()}`} />
       <RelationLine label={t.games} value={`${openGames.length} ${t.games.toLowerCase()}`} />
       <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
@@ -1145,8 +1303,16 @@ function EquipmentCard({
   return (
     <article className="catalog-card text-card">
       <Dumbbell className="entity-icon" />
-      <h3>{dictionary.equipment[offer.itemType]}</h3>
-      <p>{pitch?.name ?? `${t.pitch} #${offer.pitchId}`}</p>
+      <h3>
+        <button type="button" className="link-button title-link" onClick={onEdit}>
+          {dictionary.equipment[offer.itemType]}
+        </button>
+      </h3>
+      <p>
+        <button type="button" className="link-button" onClick={onEdit}>
+          {pitch?.name ?? `${t.pitch} #${offer.pitchId}`}
+        </button>
+      </p>
       <RelationLine label={t.stock} value={`${offer.stockTotal} ${t.items}`} />
       <RelationLine label={t.price} value={`${formatMoney(offer.rentFixedPrice)} BYN`} />
       <CardActions t={t} onEdit={onEdit} onDelete={onDelete} />
@@ -1351,6 +1517,58 @@ function CardGrid({ children }: { children: ReactNode }) {
   return <div className="card-grid">{children}</div>;
 }
 
+function paginate<T>(items: T[], page: number, pageSize: number) {
+  const safePageSize = Math.max(1, Math.floor(pageSize));
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const safePage = Math.min(Math.max(0, Math.floor(page)), totalPages - 1);
+  const start = safePage * safePageSize;
+  const end = start + safePageSize;
+  return {
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+    items: items.slice(start, end),
+  };
+}
+
+function PaginationBar({
+  t,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+}: {
+  t: UiText;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const canPrev = page > 0;
+  const canNext = page + 1 < totalPages;
+
+  if (total <= pageSize) {
+    return null;
+  }
+
+  return (
+    <div className="pagination">
+      <button type="button" className="ghost-button" disabled={!canPrev} onClick={() => onPageChange(page - 1)}>
+        ←
+      </button>
+      <div className="pagination-note">
+        {t.page} {page + 1} {t.of} {totalPages}
+      </div>
+      <button type="button" className="ghost-button" disabled={!canNext} onClick={() => onPageChange(page + 1)}>
+        →
+      </button>
+    </div>
+  );
+}
+
 function CardActions({ t, onEdit, onDelete }: { t: UiText; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="card-actions">
@@ -1399,7 +1617,7 @@ function RelationPill({ title, value }: { title: string; value: number }) {
   );
 }
 
-function RelationLine({ label, value }: { label: string; value: string }) {
+function RelationLine({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="relation-line">
       <b>{label}</b>
