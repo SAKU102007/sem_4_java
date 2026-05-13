@@ -30,11 +30,14 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --create-home spring
+    && useradd --system --create-home spring \
+    && mkdir -p /app/logs \
+    && chown -R spring:spring /app
 
-COPY --from=app-build /workspace/target/*.jar app.jar
+COPY --chown=spring:spring --from=app-build /workspace/target/*.jar app.jar
 
 ENV PORT=10000
+ENV LOG_DIR=/app/logs
 
 EXPOSE 10000
 
