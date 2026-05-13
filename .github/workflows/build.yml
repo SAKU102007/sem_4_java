@@ -1,18 +1,22 @@
 name: CI/CD
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-client:
-    name: Build SPA client
+  build:
+    name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -21,7 +25,7 @@ jobs:
           cache: npm
           cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies and build client
+      - name: Build SPA client
         working-directory: client
         env:
           VITE_API_BASE_URL: /api/v1
@@ -29,10 +33,25 @@ jobs:
           npm ci
           npm run build
 
-  test-backend:
-    name: Test backend
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Make Maven wrapper executable
+        run: chmod +x mvnw
+
+      - name: Build backend
+        run: ./mvnw -B -DskipTests clean package
+
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    needs: build-client
+    needs: build
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
@@ -47,94 +66,115 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: 17
-          distribution: zulu
+          distribution: temurin
+          java-version: "17"
           cache: maven
 
-      - name: Run backend tests
+      - name: Make Maven wrapper executable
+        run: chmod +x mvnw
+
+      - name: Test
         env:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/pitchmarket_test
           TEST_DB_USERNAME: postgres
           TEST_DB_PASSWORD: postgres
         run: ./mvnw -B verify
 
-      - name: Optional SonarCloud analysis
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          if [ -z "${SONAR_TOKEN}" ]; then
-            echo "SONAR_TOKEN is not set, skipping SonarCloud analysis."
-            exit 0
-          fi
-          ./mvnw -B sonar:sonar -Dsonar.token="${SONAR_TOKEN}" -DskipTests
-
-  docker-build:
+  docker-image:
     name: Docker build and push
     runs-on: ubuntu-latest
-    needs: test-backend
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build --build-arg VITE_API_BASE_URL=/api/v1 -t football-pitch-marketplace:${{ github.sha }} .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Push Docker image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
-            echo "Docker Hub secrets are not set, image push is skipped."
-            exit 0
-          fi
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-          docker tag football-pitch-marketplace:${{ github.sha }} "${DOCKERHUB_USERNAME}/football-pitch-marketplace:${{ github.sha }}"
-          docker tag football-pitch-marketplace:${{ github.sha }} "${DOCKERHUB_USERNAME}/football-pitch-marketplace:latest"
-          docker push "${DOCKERHUB_USERNAME}/football-pitch-marketplace:${{ github.sha }}"
-          docker push "${DOCKERHUB_USERNAME}/football-pitch-marketplace:latest"
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+          tags: |
+            ghcr.io/saku102007/sem_4_java:latest
+            ghcr.io/saku102007/sem_4_java:${{ github.sha }}
 
   deploy:
-    name: Deploy and healthcheck
+    name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: docker-image
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+
     steps:
-      - name: Trigger PaaS deploy
+      - name: Trigger Render deploy hook
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
-            echo "RENDER_DEPLOY_HOOK_URL is not set, deployment is skipped."
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL secret is not set, skipping manual deploy hook."
+            echo "Render Auto Deploy can still deploy the pushed commit."
             exit 0
           fi
-          curl -fsS -X POST "${RENDER_DEPLOY_HOOK_URL}"
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
 
-      - name: Check deployed application health
+  healthcheck:
+    name: Healthcheck
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Wait for startup
+        run: sleep 45
+
+      - name: Check /actuator/health with retries
         env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
           APP_HEALTH_URL: ${{ secrets.APP_HEALTH_URL }}
         run: |
-          if [ -z "${APP_HEALTH_URL}" ]; then
-            echo "APP_HEALTH_URL is not set, healthcheck is skipped."
-            exit 0
+          HEALTH_URL="$APP_HEALTH_URL"
+          if [ -z "$HEALTH_URL" ] && [ -n "$APP_BASE_URL" ]; then
+            HEALTH_URL="${APP_BASE_URL%/}/actuator/health"
           fi
-          for attempt in {1..30}; do
-            if curl -fsS "${APP_HEALTH_URL}"; then
-              echo "Application is healthy."
+          if [ -z "$HEALTH_URL" ]; then
+            HEALTH_URL="https://sem-4-java.onrender.com/actuator/health"
+          fi
+
+          for i in {1..10}; do
+            RESPONSE=$(curl -fsS "$HEALTH_URL" || true)
+            if echo "$RESPONSE" | grep -q '"status":"UP"'; then
+              echo "Healthcheck passed"
               exit 0
             fi
-            echo "Healthcheck attempt ${attempt} failed, waiting..."
-            sleep 10
+            echo "Healthcheck attempt $i failed, retrying in 15s..."
+            sleep 15
           done
-          echo "Application did not become healthy in time."
+          echo "Service is not healthy after retries" >&2
           exit 1
